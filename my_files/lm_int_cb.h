@@ -1,0 +1,30 @@
+#ifndef _LM_INT_CB_H
+#define _LM_INT_CB_H
+
+#include "canv.h"
+#include "led.h"
+#include "lm.h"
+#include "ext_mem.h"
+#include "debug.h"
+
+// раскрашивание переменных для обработчиков функций
+#define MODE_START CMD_START
+#define MODE_WORK 0x02
+#define MODE_CANCEL CMD_CANCEL
+
+
+// раскрашивание переменных для обработчиков команд
+#define CMD_TEST_LED 0x00
+
+extern type_LED_INDICATOR mcu_state_led;
+
+void ProcCallbackCmds_Init(void);
+void ProcCallbackCmds(CAN_TypeDef *can_ptr, typeIdxMask id, uint16_t leng, int state);
+void ProcCallbackCmdRegs(CAN_TypeDef *can_ptr, typeIdxMask id, uint16_t leng, int state);
+void ProcCallbackExtMems(CAN_TypeDef *can_ptr, typeIdxMask id, uint16_t leng, int state);
+
+void ProcCallbackCAN_Flash(CAN_TypeDef *can_ptr, typeIdxMask id, uint16_t leng, int state);
+
+void cmd_process_test_led(uint8_t mode, uint32_t period_ms);
+
+#endif

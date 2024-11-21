@@ -18,10 +18,28 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "can.h"
+#include "dma.h"
+#include "rtc.h"
+#include "spi.h"
+#include "tim.h"
+#include "usart.h"
+#include "gpio.h"
+#include "fmc.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "debug.h"
+#include "clock.h"
+#include "sys_uart.h"
+#include "pwr.h"
+#include "mim.h"
+#include "radio.h"
+#include "task_planner.h"
+#include "mim_rs485_tr_lvl_data_map.h"
+#include "canvar.h"
+#include "nand.h"
+#include "experiment.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -32,6 +50,14 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+uint8_t* dev_id_ptr = (uint8_t*)0x8000024;
+char *raw_ver = (char*)0x8000025;
+char version[16] = {0};
+uint8_t dev_id = 0;
+
+// #define SOFT_VERSION 	 ../aa_lib/fw_ver.inc
+#define IOT_FABR_NUM    (4)       //! 0 - отработочный
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -40,53 +66,41 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-CAN_HandleTypeDef hcan2;
-
-RTC_HandleTypeDef hrtc;
-
-SPI_HandleTypeDef hspi2;
-
-TIM_HandleTypeDef htim3;
-TIM_HandleTypeDef htim4;
-TIM_HandleTypeDef htim7;
-TIM_HandleTypeDef htim9;
-
-UART_HandleTypeDef huart4;
-UART_HandleTypeDef huart5;
-UART_HandleTypeDef huart7;
-UART_HandleTypeDef huart8;
-UART_HandleTypeDef huart2;
-UART_HandleTypeDef huart3;
-DMA_HandleTypeDef hdma_uart4_tx;
-DMA_HandleTypeDef hdma_uart5_tx;
-DMA_HandleTypeDef hdma_uart7_tx;
-DMA_HandleTypeDef hdma_uart8_tx;
-
-NAND_HandleTypeDef hnand1;
 
 /* USER CODE BEGIN PV */
+typeTPStruct tp;		//! обязательный объект планировщика задач
+type_MIM_DEVICE mim;
+type_MIM_INF_ID_DATA mim_data;
+type_SysUART suart;
+type_PWR_CONTROL pwr;
+type_NAND nand;
+type_EXPERIMENT_CORE ex;
+//
+extern typeRegistrationRec LocRegistrationRec[28];
+extern uint8_t CANMasterRx[8];
+//
+type_RADIO radio[MIM_MODULE_NUM - 1]; //TODO: проверять количество радиомодудей, если появится больше, чем один не радиомодуль
+typeFT ft[FT_NUM]; //WARNING: необходимо проверять число используемых полетных заданий, согласовывать их с используемой памятью
 
+uint8_t uint8_array[1024]={0};
+int16_t int16_val = 0;
+uint16_t uint16_val = 0, uint16_val_2 = 0;
+int32_t id_val = 0;
+uint8_t uint8_val = 0, cfg[16] = {0}, ft_cnt=0;
+typeFTArray task_var;
+//
+type_MIM_INF_ID_TX_DATA_WR tx_frame;
+type_MIM_INF_ID_TX_CFG tx_cfg;
+type_MIM_INF_ID_CFG_REQ cfg_req;
+type_MIM_INF_ID_RX_CFG rx_cfg;
+type_MIM_CMD_STRUCT cmd_stuct;
+type_MIM_EXP_CMD_STRUCT exp_cmd_stuct;
+type_MIM_INF_ID_RX_DATA rx_packet;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MPU_Config(void);
-static void MX_GPIO_Init(void);
-static void MX_DMA_Init(void);
-static void MX_CAN2_Init(void);
-static void MX_FMC_Init(void);
-static void MX_RTC_Init(void);
-static void MX_TIM3_Init(void);
-static void MX_TIM4_Init(void);
-static void MX_TIM7_Init(void);
-static void MX_TIM9_Init(void);
-static void MX_UART5_Init(void);
-static void MX_UART8_Init(void);
-static void MX_UART7_Init(void);
-static void MX_UART4_Init(void);
-static void MX_USART2_UART_Init(void);
-static void MX_SPI2_Init(void);
-static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -104,7 +118,10 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+  uint8_t i=0;
+  uint8_t num = 0;
+  uint8_t cmd_num = 0;
+  int8_t status = 0;
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
@@ -130,6 +147,10 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_CAN2_Init();
+	//
+	*((uint32_t*)0xA0000080) = 0x10;
+	//
+	
   MX_FMC_Init();
   MX_RTC_Init();
   MX_TIM3_Init();
@@ -143,17 +164,274 @@ int main(void)
   MX_USART2_UART_Init();
   MX_SPI2_Init();
   MX_USART3_UART_Init();
+  MX_TIM2_Init();
+  MX_TIM5_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  sprintf(version, "%c.%c.%c", raw_ver[0], raw_ver[1], raw_ver[2]);
+	dev_id = *dev_id_ptr - '0';
+	//
+	printf("______ \\_(o_O)_/ ______\n");
+	printf("Marafon Interface Module (MIM): dev_id <%d>, version <%s> \n", dev_id, version);
+  clock_init();
+  printf_time(); printf("clock init %ld s\n", (long)clock_get_time_s());
+  // flight task init
+  ft_cnt = 0; uint8_val = 0;
+  for (i = 0; i < FT_NUM; i++) {
+    ft_cnt += ft_init(&ft[i], i, 0x00, 0x00);
+  }
+  printf("\tFlight task init: <%d> (%d - OK), loaded <%d>\n", ft_cnt, (int)FT_NUM, uint8_val);
+  // main module init
+  suart_init(&suart, &huart1, &htim9);
+  pwr_init(&pwr, &suart);
+  nand_init(&nand);
+  ex_init(&ex, &nand, MIM, IOT_FABR_NUM, dev_id);
+  mim_init(&mim, MIM, version, &pwr, IOT_FABR_NUM, dev_id, radio, &ex);
+	printf("\tFlight task init: <%d> (%d - OK), loaded <%d>\n", ft_cnt, (int)FT_NUM, uint8_val);
+  mim_tr_inf_init(&mim_data);
+  mim_tr_init(&mim.tr_lvl[0], &huart8, GPIOB, 9, GPIOB, 9, &htim3, &mim_data);  // DE - не инвертировано
+  mim_tr_init(&mim.tr_lvl[1], &huart7, GPIOA, 11, GPIOA, 11, &htim4, &mim_data);  // DE - инвертировано
+  mim_tr_init(&mim.tr_lvl[2], &huart5, GPIOD, 3, GPIOD, 3, &htim2, &mim_data);    // DE - не инвертировано //TODO: Добавить обработку остальных каналов UART
+  mim_tr_init(&mim.tr_lvl[3], &huart4, GPIOA, 12, GPIOA, 12, &htim5, &mim_data);  // DE - инвертировано
+  //
+  LocRegistrationRec[0].VarPtr = &CANMasterRx;
+  LocRegistrationRec[0].VarLeng = sizeof(CANMasterRx);
+  LocRegistrationRec[0].CallBackProc = NULL;
+  LocRegistrationRec[0].ivar_id = 0;
+  LocRegistrationRec[0].access_flgs =  CAN_AFLG_NOOFFSET | CAN_AFLG_MASTER | CAN_AFLG_NOACK;
 
+  CANVar_Init(MIM + 1, LocRegistrationRec, 28);
+  //
+  for(uint8_t dev = 1; dev<MIM_MODULE_NUM; dev++){
+    radio_init(&radio[dev-1], dev, &pwr.ch[dev], dev+1);
+  }
+  // test_init temporary
+  //
+  tp_init(&tp);
+  // заполнение процессов
+  tp_process_registration(&tp, &mim_process_tp, &mim, 0, TP_SHARED_MEM_VOL_B);
+  for(uint8_t radio_num=1; radio_num < MIM_MODULE_NUM; radio_num++){
+    tp_process_registration(&tp, &radio_process_tp, &radio[radio_num-1], radio_num*512, 512);
+  }
+  tp_process_registration(&tp, &pwr_process_tp, &pwr, 0, 0);
+  //
+  HAL_TIM_Base_Start_IT(&htim7); //task_planner
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+		HAL_GPIO_WritePin(GPIOC, 1<<15, GPIO_PIN_SET);
+    tp_handler(&tp);
+		HAL_GPIO_WritePin(GPIOC, 1<<15, GPIO_PIN_RESET);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    for (num = 0; num < 2; num++){
+      id_val = mim_tr_get_processed_cmd_id(&mim.tr_lvl[num]);
+			cmd_num = mim.tr_lvl[num].data_map->id_map[id_val];
+      if (id_val >= 0){
+        HAL_GPIO_WritePin(GPIOC, 1<<13, GPIO_PIN_SET);
+        //
+        switch (id_val){
+          case MIM_INF_ID_SET_TIME:
+            clock_set_time_s_and_ms(*(uint32_t*)&mim.tr_lvl[num].data_map->unit[cmd_num].data.fields.array[0], 
+                                    *(uint16_t*)&mim.tr_lvl[num].data_map->unit[cmd_num].data.fields.array[4]);
+            printf("MIM cmd %d set_time: sec %08X part %02X\n", (int)id_val,
+                                                              *(uint32_t*)&mim.tr_lvl[num].data_map->unit[cmd_num].data.fields.array[0], 
+                                                              *(uint16_t*)&mim.tr_lvl[num].data_map->unit[cmd_num].data.fields.array[4]);
+            printf("current time: ");
+            clock_get_bcd_array_with_fractional_part(uint8_array);
+            printf_buff(uint8_array, 8, '\n');
+            break;
+          case MIM_INF_ID_SET_SETTINGS:
+            memcpy((uint8_t*)cmd_stuct.array, (uint8_t*)&mim.tr_lvl[num].data_map->unit[cmd_num].data.fields.array[0], 16);
+            if(cmd_stuct.fl.label == 0xABBC){
+              switch(cmd_stuct.fl.cmd_num){
+                case MIM_CMD_MODE:
+                  switch(*(uint16_t*)&cmd_stuct.fl.data[0])
+                  {
+                    case MIM_MODE_TRANSCEIVER:
+                      mim.ctrl.mode = MIM_MODE_TRANSCEIVER;
+                      mim_set_interval_value(&mim, MIM_INTERVAL_EXPERIMENT, 1.0);
+                      break;
+                    case MIM_MODE_EXPERIMENT:
+                      mim.ctrl.mode = MIM_MODE_EXPERIMENT;
+                      break;
+                  }
+                  break;
+                case MIM_CMD_PWR_STATE:
+                  mim.pwr_ptr->ch_state = *(uint16_t*)&cmd_stuct.fl.data[0];
+                  break;
+                case MIM_CMD_SET_DEFAULT:
+                  if((*(uint16_t*)&cmd_stuct.fl.data[0] >= 1) && (*(uint16_t*)&cmd_stuct.fl.data[0] < MIM_MODULE_NUM)){
+                    radio_rx_send_cmd(&radio[*(uint16_t*)&cmd_stuct.fl.data[0] - 1], CMD_RX_SETPARAMS);
+                  }
+                  else mim_error_collector(&mim, MIM_ERROR_CMD_PARAM, MIM_ERROR_TYPE_SET);
+                  break;
+                case MIM_CMD_RESET_STATE:
+                  mim_reset_state(&mim);
+                  for (uint8_t module_num = 1; module_num < MIM_MODULE_NUM; module_num++){
+                    radio_status_reset(&radio[module_num - 1]);
+                  }
+                  break;
+              }
+            }
+            else mim_error_collector(&mim, MIM_ERROR_CMD_PARAM, MIM_ERROR_TYPE_SET);
+            printf("MIM cmd <%d> set settings: label <0x%04X> num <%d>\n",  id_val, 
+                                                                            cmd_stuct.fl.label, 
+                                                                            cmd_stuct.fl.cmd_num);
+            break;
+          //
+          case MIM_INF_ID_SET_EXP_SETTINGS:
+            memcpy((uint8_t*)exp_cmd_stuct.array, (uint8_t*)&mim.tr_lvl[num].data_map->unit[cmd_num].data.fields.array[0], sizeof(type_MIM_EXP_CMD_STRUCT));
+            //
+            mem_tr_inf_receive_id_data(mim.tr_lvl[0].data_map, MIM_INF_ID_READ_EXP_SETTINGS, (uint8_t*)&mim.tr_lvl[num].data_map->unit[cmd_num].data.fields.array[0], sizeof(type_MIM_EXP_CMD_STRUCT));
+            //
+            if(exp_cmd_stuct.fl.label == 0xABCD){
+              switch(exp_cmd_stuct.fl.cmd_num){
+                case MIM_EXCMD_SETTINGS:
+                  memcpy((uint8_t*)&ex.shadow_param, (uint8_t*)exp_cmd_stuct.fl.data, sizeof(type_EX_Param));
+                  break;
+                case MIM_EXCMD_SET_TX_DATA:
+                  ex_set_tx_msg(&ex, exp_cmd_stuct.fl.data[0], (uint8_t*)&exp_cmd_stuct.fl.data[1]);
+                  break;
+                case MIM_EXCMD_GPOSITION:
+                  memcpy((uint8_t*)ex.position_data, (uint8_t*)exp_cmd_stuct.fl.data, MIN(sizeof(ex.position_data), sizeof(ex.position_data)));
+                  break;
+                case MIM_EXCMD_CLEAR_MSG_BUFFER:
+                  memset((uint8_t*)&ex.tx_msg_buffer, 0x00, sizeof(type_RADIO_EX_TX_MSG_BUFFER));
+                  break;
+              }
+            }
+            else mim_error_collector(&mim, MIM_ERROR_EXCMD_PARAM, MIM_ERROR_TYPE_SET);
+            printf("MIM excmd <%d> set settings: label <0x%04X> num <%d>\n",  id_val, 
+                                                                            exp_cmd_stuct.fl.label, 
+                                                                            exp_cmd_stuct.fl.cmd_num);
+            break;
+          //
+          case MIM_INF_ID_TX_CFG_REQ:
+          case MIM_INF_ID_S_TX_CFG_REQ:
+            if(mim.ctrl.mode == MIM_MODE_TRANSCEIVER){
+              memcpy((uint8_t*)&cfg_req, mim.tr_lvl[num].data_map->unit[cmd_num].data.array, sizeof(type_MIM_INF_ID_CFG_REQ));
+              printf("MIM cmd <%d> tx cfg resp: module <%d>\n", id_val, cfg_req.fl.module);
+              if ((cfg_req.fl.packet_type == 0x01) || (cfg_req.fl.packet_type == 0x21)) {
+                if ((cfg_req.fl.module < MIM_MODULE_NUM) && (cfg_req.fl.module >= 1)){
+                  if (radio_tx_get_settings(&radio[cfg_req.fl.module - 1]) == 0){
+                    tx_cfg.fl.id = id_val + 1;
+                    tx_cfg.fl.packet_type = (cfg_req.fl.packet_type == 0x01) ? 0x02 : 0x22;
+                    tx_cfg.fl.packet_size = 31;
+                    tx_cfg.fl.module = cfg_req.fl.module;
+                    memset(tx_cfg.fl.reserve, 0, sizeof(tx_cfg.fl.reserve));
+                    tx_cfg.fl.tx_frame = radio[cfg_req.fl.module - 1].tx_ctrl.IVarTxSet_rd;
+                    mem_tr_inf_receive_id_data(mim.tr_lvl[0].data_map, id_val+1, tx_cfg.tr_lvl.array, 31);
+                  }
+                }
+                else mim_error_collector(&mim, MIM_ERROR_CMD_PARAM, MIM_ERROR_TYPE_SET);
+              }
+              else mim_error_collector(&mim, MIM_ERROR_CMD_PARAM, MIM_ERROR_TYPE_SET);
+            }
+            else{mim_error_collector(&mim, MIM_ERROR_CMD_PARAM, MIM_ERROR_TYPE_SET);};
+            break;
+          case MIM_INF_ID_TX_DATA_WR:
+          case MIM_INF_ID_S_TX_DATA_WR:
+            if(mim.ctrl.mode == MIM_MODE_TRANSCEIVER){
+              memcpy((uint8_t*)&tx_frame, mim.tr_lvl[num].data_map->unit[cmd_num].data.array, sizeof(type_MIM_INF_ID_TX_DATA_WR));
+              if((tx_frame.fl.packet_type == 0x03) || (tx_frame.fl.packet_type == 0x23)) {
+                if ((tx_frame.fl.module >= 1) && (tx_frame.fl.module < MIM_MODULE_NUM)){
+                  status = radio_write_tx_fifo(&radio[tx_frame.fl.module - 1], &tx_frame.fl.tx_frame);
+                  if (status > 0) { mim.tx_total_cnt++; }
+                  else if (status < 0) { mim.tx_lost_cnt++; }
+                  else {}
+                }
+                else mim_error_collector(&mim, MIM_ERROR_CMD_PARAM, MIM_ERROR_TYPE_SET);
+              }
+              else mim_error_collector(&mim, MIM_ERROR_CMD_PARAM, MIM_ERROR_TYPE_SET);
+              printf("MIM cmd %d send data to ASP: module %04X\n", id_val, tx_frame.fl.module);
+            }
+            else{mim_error_collector(&mim, MIM_ERROR_CMD_PARAM, MIM_ERROR_TYPE_SET);};
+            break;
+          case MIM_INF_ID_RX_CFG_REQ:
+            memcpy((uint8_t*)&cfg_req, mim.tr_lvl[num].data_map->unit[cmd_num].data.array, sizeof(type_MIM_INF_ID_CFG_REQ));
+            printf("MIM cmd <%d> rx cfg resp: module <%d>\n", id_val, cfg_req.fl.module);
+            if (cfg_req.fl.packet_type == 0x11) {
+              if ((cfg_req.fl.module < MIM_MODULE_NUM) && (cfg_req.fl.module >= 1)){
+                if (radio_rx_get_settings(&radio[cfg_req.fl.module - 1]) == 0){
+                  rx_cfg.fl.id = 20;
+                  rx_cfg.fl.packet_type = 0x12;
+                  rx_cfg.fl.packet_size = 326;
+                  rx_cfg.fl.module = cfg_req.fl.module;
+                  rx_cfg.fl.reserve = 0;
+                  for (int k=0; k<4; k++) rx_cfg.fl.rx_set[k] = radio[cfg_req.fl.module - 1].rx_ctrl.IVarRxSet_rd[k];
+                  mem_tr_inf_receive_id_data(mim.tr_lvl[0].data_map, MIM_INF_ID_RX_CFG_RD, rx_cfg.tr_lvl.array, sizeof(rx_cfg.tr_lvl.array));
+                }
+              }
+              else mim_error_collector(&mim, MIM_ERROR_CMD_PARAM, MIM_ERROR_TYPE_SET);
+            }
+            else mim_error_collector(&mim, MIM_ERROR_CMD_PARAM, MIM_ERROR_TYPE_SET);
+            break;
+          case MIM_INF_ID_RX_CFG_WR:
+            memcpy((uint8_t*)&rx_cfg, mim.tr_lvl[num].data_map->unit[cmd_num].data.array, sizeof(type_MIM_INF_ID_RX_CFG));
+            printf("MIM cmd <%d> rx cfg wr: module <%d>\n", id_val, cfg_req.fl.module);
+            if (rx_cfg.fl.packet_type == 0x13) {
+              if ((rx_cfg.fl.module < MIM_MODULE_NUM) && (rx_cfg.fl.module >= 1)){
+                radio_rx_set_settings(&radio[rx_cfg.fl.module - 1], &rx_cfg.fl.rx_set[0]);
+              }
+              else mim_error_collector(&mim, MIM_ERROR_CMD_PARAM, MIM_ERROR_TYPE_SET);
+            }
+            else mim_error_collector(&mim, MIM_ERROR_CMD_PARAM, MIM_ERROR_TYPE_SET);
+            break;
+          case MIM_INF_ID_EXP_DATA_REQ:
+            memcpy((uint8_t*)uint8_array, mim.tr_lvl[num].data_map->unit[cmd_num].data.fields.array, 6);
+            if(*(uint16_t*)&uint8_array[0] == 0xABEF){
+              nand_lin_read_block_set(ex.nand_ptr, *(uint32_t*)&uint8_array[2]);
+              nand_lin_read_frame(ex.nand_ptr, ex.rx_nand_buffer);
+              mem_tr_inf_receive_id_data(mim.tr_lvl[0].data_map, MIM_INF_ID_EXP_DATA_RD, ex.rx_nand_buffer, NAND_FRAME_SIZE);
+            }
+            break;
+          case MIM_INF_ID_MFR_SEGM_DATA_WR:
+            printf("MIM cmd %d segm_data: redirect to ID-%d \n", id_val, mim.tr_lvl[num].data_map->unit[cmd_num].data.fields.id);
+						// перенаправление данных на нужный ID как команду
+            if (mim_tr_redirect_segm_data_cmd(&mim.tr_lvl[num])) {}
+            else mim_error_collector(&mim, MIM_ERROR_CMD_PARAM, MIM_ERROR_TYPE_SET);
+          break;
+        }
+        HAL_GPIO_WritePin(GPIOC, 1<<13, GPIO_PIN_RESET);
+        //
+      }
+      id_val = mim_tr_get_processed_data_id(&mim.tr_lvl[num]);
+			cmd_num = mim.tr_lvl[num].data_map->id_map[id_val];
+      if (id_val >= 0){
+        HAL_GPIO_WritePin(GPIOC, 1<<13, GPIO_PIN_SET);
+        //
+        switch (id_val){
+            case MIM_INF_ID_RX_DATA_RD:
+							printf("MIM data <%d> rx data read\n", id_val);
+              rx_packet.fl.packet_type = 0x14;
+							if(mim_read_rx_fifo(&mim, &rx_packet)){
+                rx_packet.fl.packet_size = 4 + rx_packet.fl.packet.tot_size;
+							}
+							else{
+								rx_packet.fl.packet_size = 4;
+							}
+              mem_tr_inf_receive_id_data(mim.tr_lvl[0].data_map, MIM_INF_ID_RX_DATA_RD, (uint8_t*)&rx_packet.tr_lvl.array, rx_packet.fl.packet_size);
+							break;
+            case MIM_INF_ID_MFR_DATA_RD:
+							printf("MIM data <%d> mfr rx data read\n", (int)id_val);
+							mim_read_rx_fifo_and_form_mrf_packet(&mim, uint8_array);
+              mem_tr_inf_receive_id_data(mim.tr_lvl[0].data_map, MIM_INF_ID_MFR_DATA_RD, uint8_array, 1014);
+							break;
+            case MIM_INF_ID_EXP_DATA_RD:
+							printf("EXP data <%d>\n", (int)id_val);
+              nand_lin_read_frame(ex.nand_ptr, ex.rx_nand_buffer);
+              mem_tr_inf_receive_id_data(mim.tr_lvl[0].data_map, MIM_INF_ID_EXP_DATA_RD, ex.rx_nand_buffer, NAND_FRAME_SIZE);
+							break;
+        }
+      //
+      HAL_GPIO_WritePin(GPIOC, 1<<13, GPIO_PIN_RESET);
+      }
+    }
   }
   /* USER CODE END 3 */
 }
@@ -210,633 +488,84 @@ void SystemClock_Config(void)
   }
 }
 
-/**
-  * @brief CAN2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_CAN2_Init(void)
-{
-
-  /* USER CODE BEGIN CAN2_Init 0 */
-
-  /* USER CODE END CAN2_Init 0 */
-
-  /* USER CODE BEGIN CAN2_Init 1 */
-
-  /* USER CODE END CAN2_Init 1 */
-  hcan2.Instance = CAN2;
-  hcan2.Init.Prescaler = 16;
-  hcan2.Init.Mode = CAN_MODE_NORMAL;
-  hcan2.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan2.Init.TimeSeg1 = CAN_BS1_1TQ;
-  hcan2.Init.TimeSeg2 = CAN_BS2_1TQ;
-  hcan2.Init.TimeTriggeredMode = DISABLE;
-  hcan2.Init.AutoBusOff = DISABLE;
-  hcan2.Init.AutoWakeUp = DISABLE;
-  hcan2.Init.AutoRetransmission = DISABLE;
-  hcan2.Init.ReceiveFifoLocked = DISABLE;
-  hcan2.Init.TransmitFifoPriority = DISABLE;
-  if (HAL_CAN_Init(&hcan2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN CAN2_Init 2 */
-
-  /* USER CODE END CAN2_Init 2 */
-
-}
-
-/**
-  * @brief RTC Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_RTC_Init(void)
-{
-
-  /* USER CODE BEGIN RTC_Init 0 */
-
-  /* USER CODE END RTC_Init 0 */
-
-  /* USER CODE BEGIN RTC_Init 1 */
-
-  /* USER CODE END RTC_Init 1 */
-
-  /** Initialize RTC Only
-  */
-  hrtc.Instance = RTC;
-  hrtc.Init.HourFormat = RTC_HOURFORMAT_24;
-  hrtc.Init.AsynchPrediv = 127;
-  hrtc.Init.SynchPrediv = 255;
-  hrtc.Init.OutPut = RTC_OUTPUT_DISABLE;
-  hrtc.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
-  hrtc.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
-  if (HAL_RTC_Init(&hrtc) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN RTC_Init 2 */
-
-  /* USER CODE END RTC_Init 2 */
-
-}
-
-/**
-  * @brief SPI2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_SPI2_Init(void)
-{
-
-  /* USER CODE BEGIN SPI2_Init 0 */
-
-  /* USER CODE END SPI2_Init 0 */
-
-  /* USER CODE BEGIN SPI2_Init 1 */
-
-  /* USER CODE END SPI2_Init 1 */
-  /* SPI2 parameter configuration*/
-  hspi2.Instance = SPI2;
-  hspi2.Init.Mode = SPI_MODE_MASTER;
-  hspi2.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi2.Init.CLKPolarity = SPI_POLARITY_HIGH;
-  hspi2.Init.CLKPhase = SPI_PHASE_2EDGE;
-  hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-  hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi2.Init.CRCPolynomial = 7;
-  hspi2.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
-  hspi2.Init.NSSPMode = SPI_NSS_PULSE_DISABLE;
-  if (HAL_SPI_Init(&hspi2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN SPI2_Init 2 */
-
-  /* USER CODE END SPI2_Init 2 */
-
-}
-
-/**
-  * @brief TIM3 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM3_Init(void)
-{
-
-  /* USER CODE BEGIN TIM3_Init 0 */
-
-  /* USER CODE END TIM3_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-  /* USER CODE BEGIN TIM3_Init 1 */
-
-  /* USER CODE END TIM3_Init 1 */
-  htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 699;
-  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 65535;
-  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM3_Init 2 */
-
-  /* USER CODE END TIM3_Init 2 */
-
-}
-
-/**
-  * @brief TIM4 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM4_Init(void)
-{
-
-  /* USER CODE BEGIN TIM4_Init 0 */
-
-  /* USER CODE END TIM4_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-  /* USER CODE BEGIN TIM4_Init 1 */
-
-  /* USER CODE END TIM4_Init 1 */
-  htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 699;
-  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 10;
-  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM4_Init 2 */
-
-  /* USER CODE END TIM4_Init 2 */
-
-}
-
-/**
-  * @brief TIM7 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM7_Init(void)
-{
-
-  /* USER CODE BEGIN TIM7_Init 0 */
-
-  /* USER CODE END TIM7_Init 0 */
-
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-  /* USER CODE BEGIN TIM7_Init 1 */
-
-  /* USER CODE END TIM7_Init 1 */
-  htim7.Instance = TIM7;
-  htim7.Init.Prescaler = 69;
-  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim7.Init.Period = 99;
-  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
-  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM7_Init 2 */
-
-  /* USER CODE END TIM7_Init 2 */
-
-}
-
-/**
-  * @brief TIM9 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM9_Init(void)
-{
-
-  /* USER CODE BEGIN TIM9_Init 0 */
-
-  /* USER CODE END TIM9_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-
-  /* USER CODE BEGIN TIM9_Init 1 */
-
-  /* USER CODE END TIM9_Init 1 */
-  htim9.Instance = TIM9;
-  htim9.Init.Prescaler = 69;
-  htim9.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim9.Init.Period = 19999;
-  htim9.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim9.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
-  if (HAL_TIM_Base_Init(&htim9) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim9, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_OnePulse_Init(&htim9, TIM_OPMODE_SINGLE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM9_Init 2 */
-
-  /* USER CODE END TIM9_Init 2 */
-
-}
-
-/**
-  * @brief UART4 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_UART4_Init(void)
-{
-
-  /* USER CODE BEGIN UART4_Init 0 */
-
-  /* USER CODE END UART4_Init 0 */
-
-  /* USER CODE BEGIN UART4_Init 1 */
-
-  /* USER CODE END UART4_Init 1 */
-  huart4.Instance = UART4;
-  huart4.Init.BaudRate = 921600;
-  huart4.Init.WordLength = UART_WORDLENGTH_9B;
-  huart4.Init.StopBits = UART_STOPBITS_1;
-  huart4.Init.Parity = UART_PARITY_EVEN;
-  huart4.Init.Mode = UART_MODE_TX_RX;
-  huart4.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart4.Init.OverSampling = UART_OVERSAMPLING_8;
-  huart4.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart4.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN UART4_Init 2 */
-
-  /* USER CODE END UART4_Init 2 */
-
-}
-
-/**
-  * @brief UART5 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_UART5_Init(void)
-{
-
-  /* USER CODE BEGIN UART5_Init 0 */
-
-  /* USER CODE END UART5_Init 0 */
-
-  /* USER CODE BEGIN UART5_Init 1 */
-
-  /* USER CODE END UART5_Init 1 */
-  huart5.Instance = UART5;
-  huart5.Init.BaudRate = 921600;
-  huart5.Init.WordLength = UART_WORDLENGTH_9B;
-  huart5.Init.StopBits = UART_STOPBITS_1;
-  huart5.Init.Parity = UART_PARITY_EVEN;
-  huart5.Init.Mode = UART_MODE_TX_RX;
-  huart5.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart5.Init.OverSampling = UART_OVERSAMPLING_8;
-  huart5.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart5.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart5) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN UART5_Init 2 */
-
-  /* USER CODE END UART5_Init 2 */
-
-}
-
-/**
-  * @brief UART7 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_UART7_Init(void)
-{
-
-  /* USER CODE BEGIN UART7_Init 0 */
-
-  /* USER CODE END UART7_Init 0 */
-
-  /* USER CODE BEGIN UART7_Init 1 */
-
-  /* USER CODE END UART7_Init 1 */
-  huart7.Instance = UART7;
-  huart7.Init.BaudRate = 921600;
-  huart7.Init.WordLength = UART_WORDLENGTH_9B;
-  huart7.Init.StopBits = UART_STOPBITS_1;
-  huart7.Init.Parity = UART_PARITY_EVEN;
-  huart7.Init.Mode = UART_MODE_TX_RX;
-  huart7.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart7.Init.OverSampling = UART_OVERSAMPLING_8;
-  huart7.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart7.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart7) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN UART7_Init 2 */
-
-  /* USER CODE END UART7_Init 2 */
-
-}
-
-/**
-  * @brief UART8 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_UART8_Init(void)
-{
-
-  /* USER CODE BEGIN UART8_Init 0 */
-
-  /* USER CODE END UART8_Init 0 */
-
-  /* USER CODE BEGIN UART8_Init 1 */
-
-  /* USER CODE END UART8_Init 1 */
-  huart8.Instance = UART8;
-  huart8.Init.BaudRate = 921600;
-  huart8.Init.WordLength = UART_WORDLENGTH_9B;
-  huart8.Init.StopBits = UART_STOPBITS_1;
-  huart8.Init.Parity = UART_PARITY_EVEN;
-  huart8.Init.Mode = UART_MODE_TX_RX;
-  huart8.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart8.Init.OverSampling = UART_OVERSAMPLING_8;
-  huart8.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart8.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart8) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN UART8_Init 2 */
-
-  /* USER CODE END UART8_Init 2 */
-
-}
-
-/**
-  * @brief USART2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART2_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART2_Init 0 */
-
-  /* USER CODE END USART2_Init 0 */
-
-  /* USER CODE BEGIN USART2_Init 1 */
-
-  /* USER CODE END USART2_Init 1 */
-  huart2.Instance = USART2;
-  huart2.Init.BaudRate = 921600;
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_TX_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART2_Init 2 */
-
-  /* USER CODE END USART2_Init 2 */
-
-}
-
-/**
-  * @brief USART3 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART3_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART3_Init 0 */
-
-  /* USER CODE END USART3_Init 0 */
-
-  /* USER CODE BEGIN USART3_Init 1 */
-
-  /* USER CODE END USART3_Init 1 */
-  huart3.Instance = USART3;
-  huart3.Init.BaudRate = 115200;
-  huart3.Init.WordLength = UART_WORDLENGTH_8B;
-  huart3.Init.StopBits = UART_STOPBITS_1;
-  huart3.Init.Parity = UART_PARITY_NONE;
-  huart3.Init.Mode = UART_MODE_TX_RX;
-  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart3.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart3.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART3_Init 2 */
-
-  /* USER CODE END USART3_Init 2 */
-
-}
-
-/**
-  * Enable DMA controller clock
-  */
-static void MX_DMA_Init(void)
-{
-
-  /* DMA controller clock enable */
-  __HAL_RCC_DMA1_CLK_ENABLE();
-
-  /* DMA interrupt init */
-  /* DMA1_Stream0_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 1, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
-  /* DMA1_Stream1_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 1, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
-  /* DMA1_Stream4_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 1, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);
-  /* DMA1_Stream7_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream7_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Stream7_IRQn);
-
-}
-
-/* FMC initialization function */
-static void MX_FMC_Init(void)
-{
-
-  /* USER CODE BEGIN FMC_Init 0 */
-
-  /* USER CODE END FMC_Init 0 */
-
-  FMC_NAND_PCC_TimingTypeDef ComSpaceTiming = {0};
-  FMC_NAND_PCC_TimingTypeDef AttSpaceTiming = {0};
-
-  /* USER CODE BEGIN FMC_Init 1 */
-
-  /* USER CODE END FMC_Init 1 */
-
-  /** Perform the NAND1 memory initialization sequence
-  */
-  hnand1.Instance = FMC_NAND_DEVICE;
-  /* hnand1.Init */
-  hnand1.Init.NandBank = FMC_NAND_BANK3;
-  hnand1.Init.Waitfeature = FMC_NAND_WAIT_FEATURE_ENABLE;
-  hnand1.Init.MemoryDataWidth = FMC_NAND_MEM_BUS_WIDTH_8;
-  hnand1.Init.EccComputation = FMC_NAND_ECC_ENABLE;
-  hnand1.Init.ECCPageSize = FMC_NAND_ECC_PAGE_SIZE_1024BYTE;
-  hnand1.Init.TCLRSetupTime = 1;
-  hnand1.Init.TARSetupTime = 1;
-  /* hnand1.Config */
-  hnand1.Config.PageSize = 8192;
-  hnand1.Config.SpareAreaSize = 436;
-  hnand1.Config.BlockSize = 128;
-  hnand1.Config.BlockNbr = 2076;
-  hnand1.Config.PlaneNbr = 1;
-  hnand1.Config.PlaneSize = 2076;
-  hnand1.Config.ExtraCommandEnable = ENABLE;
-  /* ComSpaceTiming */
-  ComSpaceTiming.SetupTime = 2;
-  ComSpaceTiming.WaitSetupTime = 2;
-  ComSpaceTiming.HoldSetupTime = 4;
-  ComSpaceTiming.HiZSetupTime = 3;
-  /* AttSpaceTiming */
-  AttSpaceTiming.SetupTime = 2;
-  AttSpaceTiming.WaitSetupTime = 2;
-  AttSpaceTiming.HoldSetupTime = 4;
-  AttSpaceTiming.HiZSetupTime = 3;
-
-  if (HAL_NAND_Init(&hnand1, &ComSpaceTiming, &AttSpaceTiming) != HAL_OK)
-  {
-    Error_Handler( );
-  }
-
-  /* USER CODE BEGIN FMC_Init 2 */
-
-  /* USER CODE END FMC_Init 2 */
-}
-
-/**
-  * @brief GPIO Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_GPIO_Init(void)
-{
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-/* USER CODE BEGIN MX_GPIO_Init_1 */
-/* USER CODE END MX_GPIO_Init_1 */
-
-  /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOE_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOG_CLK_ENABLE();
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_3, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11|GPIO_PIN_12, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
-
-  /*Configure GPIO pins : PD8 PD9 PD3 */
-  GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_3;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : PA11 PA12 */
-  GPIO_InitStruct.Pin = GPIO_PIN_11|GPIO_PIN_12;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PB9 */
-  GPIO_InitStruct.Pin = GPIO_PIN_9;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-/* USER CODE BEGIN MX_GPIO_Init_2 */
-/* USER CODE END MX_GPIO_Init_2 */
-}
-
 /* USER CODE BEGIN 4 */
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if(huart == &huart8){ //RS_485 channel МА1
+		mim_tr_it_tx_cb(&mim.tr_lvl[0]);
+	}
+  if(huart == &huart5){ //RS_485 channel МА2
+		mim_tr_it_tx_cb(&mim.tr_lvl[2]);
+	}
+  if(huart == &huart7){ //RS_485 channel МФР1
+		mim_tr_it_tx_cb(&mim.tr_lvl[1]);
+	}
+  if(huart == &huart4){ //RS_485 channel МФР2
+		mim_tr_it_tx_cb(&mim.tr_lvl[3]);
+	}
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if(huart == &huart1){ //system uart
+		suart_rx_irq_handler(&suart);
+	}
+  if(huart == &huart8){ //RS_485 channel МА1
+		mim_tr_it_rx_uart_cb(&mim.tr_lvl[0]);
+	}
+  if(huart == &huart5){ //RS_485 channel МА2
+		mim_tr_it_rx_uart_cb(&mim.tr_lvl[2]);
+	}
+  if(huart == &huart7){ //RS_485 channel МФР1
+		mim_tr_it_rx_uart_cb(&mim.tr_lvl[1]);
+	}
+  if(huart == &huart4){ //RS_485 channel МФР2
+		mim_tr_it_rx_uart_cb(&mim.tr_lvl[3]);
+	}
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+  if(huart == &huart8){ //RS_485 channel МА1
+		printf("uart error %d\n", (int)HAL_UART_GetError(huart));
+    mim_tr_it_rx_error_cb(&mim.tr_lvl[0]);
+	}
+  if(huart == &huart5){ //RS_485 channel МА2
+		printf("uart error %d\n", (int)HAL_UART_GetError(huart));
+    mim_tr_it_rx_error_cb(&mim.tr_lvl[2]);
+	}
+  if(huart == &huart7){ //RS_485 channel МФР1
+		printf("uart error %d\n", (int)HAL_UART_GetError(huart));
+    mim_tr_it_rx_error_cb(&mim.tr_lvl[1]);
+	}
+  if(huart == &huart4){ //RS_485 channel МФР2
+		printf("uart error %d\n", (int)HAL_UART_GetError(huart));
+    mim_tr_it_rx_error_cb(&mim.tr_lvl[3]);
+	}
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if (htim == &htim3) { //RS_485 channel МА1
+		mim_tr_it_rx_timer_cb(&mim.tr_lvl[0]);
+	}
+	if (htim == &htim4) { //RS_485 channel МА2
+		mim_tr_it_rx_timer_cb(&mim.tr_lvl[2]);
+	}
+  if (htim == &htim2) { //RS_485 channel МФР1
+		mim_tr_it_rx_timer_cb(&mim.tr_lvl[1]);
+	}
+  if (htim == &htim5) { //RS_485 channel МФР2
+		mim_tr_it_rx_timer_cb(&mim.tr_lvl[3]);
+	}
+  if (htim == &htim9) { // system_uart
+		suart_timer_irq_handler(&suart);
+	}
+  if (htim == &htim7) { // task_planner
+		tp_timer_handler(&tp);
+	}
+}
 
 /* USER CODE END 4 */
 
