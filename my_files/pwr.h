@@ -5,6 +5,7 @@
 #include "sys_uart.h"
 #include "task_planner.h"
 #include "debug.h"
+#include "clock.h"
 
 #define PWR_PROCESS_PERIOD 100
 

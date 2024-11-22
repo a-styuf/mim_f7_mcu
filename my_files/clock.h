@@ -14,7 +14,10 @@ uint32_t clock_get_unix_time_s(void);
 void clock_set_time_s(uint32_t time_s);
 void clock_set_time_s_and_ms(uint32_t time_s, uint16_t ms);
 void clock_get_bcd_array(uint8_t *array);
-void clock_get_bcd_array_with_fractional_part(uint8_t *array);
+void clock_get_bcd_array_with_fractional_part(volatile uint8_t *array);
+
+volatile char* clock_get_str(void);
+volatile char* now(void);
 
 uint16_t _get_month_offset(uint8_t year, uint8_t month);
 

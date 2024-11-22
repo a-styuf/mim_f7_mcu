@@ -279,9 +279,9 @@ typedef struct
 	uint8_t load_cfg_status;
 	uint16_t mode;
 	//! работа с различными интервалами
-	uint16_t intervals[MIM_INTERV_NUMBER];
-	uint64_t last_call_interval_times[MIM_INTERV_NUMBER];
-	uint64_t first_call_time[MIM_INTERV_NUMBER];
+	uint64_t intervals_us[MIM_INTERV_NUMBER];
+	uint64_t last_call_interval_times_us[MIM_INTERV_NUMBER];
+	uint64_t first_call_time_us[MIM_INTERV_NUMBER];
 	uint8_t first_call_status[MIM_INTERV_NUMBER];
 	//
 	uint8_t inhibit;  // 0-2 - NU, 3 - запрет проверки оставшегося свободного места для работы циклограмм ИСС

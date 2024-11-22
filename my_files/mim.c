@@ -11,23 +11,9 @@ void mim_init(type_MIM_DEVICE* mim_ptr, uint8_t self_id, char* ver, type_PWR_CON
 	mim_ptr->radio_array = radio_ptr;
 	mim_ptr->ex_ptr = ex_ptr;
 	//
-	printf("Version: %s\n", ver);
-	sscanf(ver, "%hu.%hu.%hu",  &mim_ptr->ver[0],
-								&mim_ptr->ver[1],
-								&mim_ptr->ver[2]);
-	//
-	printf_time();
-	printf("Start init\n");
-	//
 	mim_ctrl_init(mim_ptr);
-	printf("\tLM-struct init\n");
 	//
-	mim_ptr->ctrl.run_block |= (((unsigned)__get_IPSR() >> 19) & 0x01);
-	printf("Run Flush Block: <0x%08X>, that mean we use soft memory part <%d>\n", (unsigned)__get_IPSR(), (((unsigned)__get_IPSR() >> 19) & 0x01));
-	// установка конфигурации
-	//
-	printf_time();
-	printf("Finish init at %ld s\n\n", (long)clock_get_time_s());
+	printf("%s: MIM init\n", now());
 }
 
 /**
@@ -39,7 +25,6 @@ int8_t mim_ctrl_init(type_MIM_DEVICE* mim_ptr)
 	int8_t ret_val = 0;
 	// инициализируем параметры управляющей структуры
 	mim_ptr->ctrl.global_time_s = 0;
-	clock_set_time_s(0);
 	mim_ptr->ctrl.mode = MIM_MODE_TRANSCEIVER;
 	memset((uint8_t*)mim_ptr->pl_status, 0x00, sizeof(mim_ptr->pl_status));
 	memset((uint8_t*)mim_ptr->pl_report, 0x00, sizeof(mim_ptr->pl_report));
@@ -91,6 +76,7 @@ int8_t mim_process_tp(void* ctrl_struct, uint64_t time_us, typeProcessInterfaceS
 		mim_ptr->call_interval_us = time_us - mim_ptr->last_call_time_us;
 		mim_ptr->last_call_time_us = time_us;
 		// USER_CODE_BEGIN
+
 		// USER_CODE_END
 		retval = 1;
 	}
@@ -272,10 +258,10 @@ void mim_intervals_init(type_MIM_DEVICE* mim_ptr)
 	float interv_start_time[MIM_INTERV_NUMBER] = DEFAULT_MIM_DEFAULT_START_TIME_S;
 	//
 	for (i=0; i<MIM_INTERV_NUMBER; i++){
-		mim_ptr->ctrl.intervals[i] = interv_default_values[i];
-		mim_ptr->ctrl.last_call_interval_times[i] = 0;
+		mim_ptr->ctrl.intervals_us[i] = (uint64_t)(floor(interv_default_values[i] * 1000000));
+		mim_ptr->ctrl.last_call_interval_times_us[i] = 0;
+		mim_ptr->ctrl.first_call_time_us[i] = (uint64_t)(floor(interv_start_time[i] * 1000000));
 		mim_ptr->ctrl.first_call_status[i] = 0;
-		mim_ptr->ctrl.first_call_time[i] = interv_start_time[i];
 	}
 }
 
@@ -290,17 +276,17 @@ void mim_intervals_init(type_MIM_DEVICE* mim_ptr)
 int8_t mim_interval_processor(type_MIM_DEVICE* mim_ptr, uint8_t interval_id, uint64_t time_us)
 {
 	uint64_t interval_us;
-	uint64_t last_call_interval = (time_us - mim_ptr->ctrl.last_call_interval_times[interval_id]);
+	uint64_t last_call_interval = (time_us - mim_ptr->ctrl.last_call_interval_times_us[interval_id]);
 	//
 	if (mim_ptr->ctrl.first_call_status[interval_id] == 0){
-		interval_us = mim_ptr->ctrl.first_call_time[interval_id] * 1000000;
+		interval_us = mim_ptr->ctrl.first_call_time_us[interval_id];
 	}
 	else{
-		interval_us = mim_ptr->ctrl.intervals[interval_id] * 1000000;
+		interval_us = mim_ptr->ctrl.intervals_us[interval_id];
 	}
 
 	if (last_call_interval > interval_us) {
-		mim_ptr->ctrl.last_call_interval_times[interval_id] = time_us;
+		mim_ptr->ctrl.last_call_interval_times_us[interval_id] = time_us;
 		mim_ptr->ctrl.first_call_status[interval_id] = 1;
 		return 1;
 	}
@@ -318,7 +304,7 @@ int8_t mim_interval_processor(type_MIM_DEVICE* mim_ptr, uint8_t interval_id, uin
 void mim_set_interval_value(type_MIM_DEVICE* mim_ptr, uint16_t interval_number, uint16_t interval_value_s)
 {
 	if (interval_number < MIM_INTERV_NUMBER){
-		mim_ptr->ctrl.intervals[interval_number] = get_val_from_bound(interval_value_s, 0.5, 7200);
+		mim_ptr->ctrl.intervals_us[interval_number] = get_val_from_bound(interval_value_s, 0.5, 7200) * 1000000;
 	}
 	else{
 		return;

@@ -49,7 +49,8 @@ __heap_limit
 
                 PRESERVE8
                 THUMB
-
+				
+				include  ..\aa_lib\fw_ver.inc
 
 ; Vector Table Mapped to Address 0 at Reset
                 AREA    RESET, DATA, READONLY
@@ -66,7 +67,7 @@ __Vectors       DCD     __initial_sp               ; Top of Stack
                 DCD     UsageFault_Handler         ; Usage Fault Handler
                 DCD     0                          ; Reserved
                 DCD     0                          ; Reserved
-                DCD     0                          ; Reserved
+__FW_Version    DCB     _FW_VER_                   ; FW Version
                 DCD     0                          ; Reserved
                 DCD     SVC_Handler                ; SVCall Handler
                 DCD     DebugMon_Handler           ; Debug Monitor Handler

@@ -160,7 +160,7 @@ int8_t radio_check_status(type_RADIO* radio_ptr)
 void radio_get_packet(type_RADIO* radio_ptr)
 {	
 	#ifdef DEBUG
-	printf_time(); printf("radio %d: get packet\n", radio_ptr->self_id);
+	printf("%s: radio %d: get packet\n", now(), radio_ptr->self_id);
 	#endif
 }
 
@@ -172,7 +172,7 @@ void radio_get_packet(type_RADIO* radio_ptr)
 void radio_get_settings(type_RADIO* radio_ptr)
 {	
 	#ifdef DEBUG
-	printf_time(); printf("radio %d: get settings\n", radio_ptr->self_id);
+	printf("%s: radio %d: get settings\n", now(), radio_ptr->self_id);
 	#endif
 }
 
@@ -536,7 +536,7 @@ int8_t radio_rx_get_packet(type_RADIO* radio_ptr)
 	error = CANVar_Read(idx, (uint8_t*)&radio_ptr->rx_ctrl.IVarPktR_rd, sizeof(typePktRx));
 	if (error >= 0) {
 		#ifdef DEBUG
-		// printf_time(); printf("RADIO %d: check packet, idx = 0x%08X, ctrl = 0x%02X, stat = 0x%02X\t", radio_ptr->self_id, idx.u32, radio_ptr->tx_ctrl.IVarTxCtrl_rd.Cmd, radio_ptr->tx_ctrl.IVarTxCtrl_rd.Status);
+		// printf("%s: RADIO %d: check packet, idx = 0x%08X, ctrl = 0x%02X, stat = 0x%02X\t", now(), radio_ptr->self_id, idx.u32, radio_ptr->tx_ctrl.IVarTxCtrl_rd.Cmd, radio_ptr->tx_ctrl.IVarTxCtrl_rd.Status);
 		#endif
 		if (1){
 			status = radio_write_rx_fifo(radio_ptr, &radio_ptr->rx_ctrl.IVarPktR_rd);

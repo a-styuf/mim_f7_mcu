@@ -46,7 +46,7 @@ int8_t pwr_init(type_PWR_CONTROL* pwr_ptr, type_SysUART* suart_ptr)
 	}
 	// контроль инициализации
 	pwr_ptr->init_report = report;
-	printf("\tPwr subsystem init: %d\n", pwr_ptr->init_report);
+	printf("%s: Pwr subsystem init: %d\n", now(), pwr_ptr->init_report);
 	//
 	return report;
 }

@@ -9,6 +9,8 @@
 
 #include "clock.h"
 
+char clock_str[32] = {0};
+
 /**
   * @brief  устанавливаем время в ноль при перезагрузке
   */
@@ -99,9 +101,9 @@ void clock_get_bcd_array(uint8_t *array)
 /**
   * @brief  получение массива данных в формате hex2dec YYMMDD-hhmmss
   */
-void clock_get_bcd_array_with_fractional_part(uint8_t *array)
+void clock_get_bcd_array_with_fractional_part(volatile uint8_t *array)
 {
-  uint16_t ms = 0;
+  volatile uint16_t ms = 0;
   // type_tm tm_time;
   RTC_TimeTypeDef time = {0};
   RTC_DateTypeDef date = {0};
@@ -109,7 +111,7 @@ void clock_get_bcd_array_with_fractional_part(uint8_t *array)
 	HAL_RTC_GetTime(&hrtc, &time, RTC_FORMAT_BCD);
 	HAL_RTC_GetDate(&hrtc, &date, RTC_FORMAT_BCD);
   //
-  ms = (1 - time.SubSeconds*(1./(1+time.SecondFraction)));  // ms
+  ms = 1000 * (time.SecondFraction - time.SubSeconds)*(1./(1+time.SecondFraction));  // ms
 
   //
   array[0] = date.Year;
@@ -118,8 +120,8 @@ void clock_get_bcd_array_with_fractional_part(uint8_t *array)
   array[3] = time.Hours;
   array[4] = time.Minutes;
   array[5] = time.Seconds;
-  array[6] = RTC_ByteToBcd2(ms/256);
-  array[7] = RTC_ByteToBcd2(ms%256);;
+  array[6] = RTC_ByteToBcd2(ms/100);
+  array[7] = RTC_ByteToBcd2(ms%100);;
 }
 
 /**
@@ -213,6 +215,26 @@ void clock_set_time_s_and_ms(uint32_t time_s, uint16_t ms)
   //
   HAL_RTC_SetTime(&hrtc, &time, RTC_FORMAT_BIN);
   HAL_RTC_SetDate(&hrtc, &date, RTC_FORMAT_BIN);
+}
+
+/**
+  * @brief  получение массива данных в формате hex2dec YYMMDD-hhmmss
+  */
+volatile char* clock_get_str(void)
+{
+  volatile uint8_t clock_array[32] = {0};
+  clock_get_bcd_array_with_fractional_part(clock_array);
+  sprintf(clock_str, "%02X-%02X-%02X %02X:%02X:%02X.%01X%02X",  clock_array[0], clock_array[1], clock_array[2], clock_array[3], 
+                                                    clock_array[4], clock_array[5], clock_array[6], clock_array[7]);
+  return clock_str;
+}
+
+/**
+  * @brief  получение массива данных в формате hex2dec YYMMDD-hhmmss
+  */
+volatile char* now(void)
+{
+  return clock_get_str();
 }
 
 uint16_t _get_month_offset(uint8_t year, uint8_t month)

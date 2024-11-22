@@ -7,6 +7,7 @@
 #include "my_gpio.h"
 #include "crc16.h"
 #include "debug.h"
+#include "clock.h"
 
 #ifndef MAX
 #define MAX(A, B) ((A) > (B) ? (A) : (B))

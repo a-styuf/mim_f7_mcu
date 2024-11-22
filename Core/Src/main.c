@@ -100,7 +100,6 @@ type_MIM_INF_ID_RX_DATA rx_packet;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-static void MPU_Config(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -124,9 +123,6 @@ int main(void)
   int8_t status = 0;
   /* USER CODE END 1 */
 
-  /* MPU Configuration--------------------------------------------------------*/
-  MPU_Config();
-
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
@@ -147,10 +143,6 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_CAN2_Init();
-	//
-	*((uint32_t*)0xA0000080) = 0x10;
-	//
-	
   MX_FMC_Init();
   MX_RTC_Init();
   MX_TIM3_Init();
@@ -171,28 +163,31 @@ int main(void)
   sprintf(version, "%c.%c.%c", raw_ver[0], raw_ver[1], raw_ver[2]);
 	dev_id = *dev_id_ptr - '0';
 	//
-	printf("______ \\_(o_O)_/ ______\n");
-	printf("Marafon Interface Module (MIM): dev_id <%d>, version <%s> \n", dev_id, version);
+  printf("\nSW v%s\n", version);
+	printf("\n______ \\_(o_O)_/ ______\n");
   clock_init();
-  printf_time(); printf("clock init %ld s\n", (long)clock_get_time_s());
+	printf("%s: Clock init. Now is %d s\n", now(), clock_get_time_s());
+	HAL_Delay(5);
+  printf("%s: Clock after 5 ms delay\n", now());
+	printf("%s: Marafon Interface Module (MIM): dev_id <%d>, version <%s> \n", now(), dev_id, version);
   // flight task init
   ft_cnt = 0; uint8_val = 0;
   for (i = 0; i < FT_NUM; i++) {
     ft_cnt += ft_init(&ft[i], i, 0x00, 0x00);
   }
-  printf("\tFlight task init: <%d> (%d - OK), loaded <%d>\n", ft_cnt, (int)FT_NUM, uint8_val);
+  printf("%s: Flight task init: <%d> (%d - OK), loaded <%d>\n", now(), ft_cnt, (int)FT_NUM, uint8_val);
   // main module init
   suart_init(&suart, &huart1, &htim9);
   pwr_init(&pwr, &suart);
   nand_init(&nand);
   ex_init(&ex, &nand, MIM, IOT_FABR_NUM, dev_id);
   mim_init(&mim, MIM, version, &pwr, IOT_FABR_NUM, dev_id, radio, &ex);
-	printf("\tFlight task init: <%d> (%d - OK), loaded <%d>\n", ft_cnt, (int)FT_NUM, uint8_val);
+	printf("%s: Flight task init: <%d> (%d - OK), loaded <%d>\n", now(), ft_cnt, (int)FT_NUM, uint8_val);
   mim_tr_inf_init(&mim_data);
-  mim_tr_init(&mim.tr_lvl[0], &huart8, GPIOB, 9, GPIOB, 9, &htim3, &mim_data);  // DE - не инвертировано
-  mim_tr_init(&mim.tr_lvl[1], &huart7, GPIOA, 11, GPIOA, 11, &htim4, &mim_data);  // DE - инвертировано
-  mim_tr_init(&mim.tr_lvl[2], &huart5, GPIOD, 3, GPIOD, 3, &htim2, &mim_data);    // DE - не инвертировано //TODO: Добавить обработку остальных каналов UART
-  mim_tr_init(&mim.tr_lvl[3], &huart4, GPIOA, 12, GPIOA, 12, &htim5, &mim_data);  // DE - инвертировано
+  mim_tr_init(&mim.tr_lvl[0], &huart7, GPIOA, 11, GPIOA, 11, &htim4, &mim_data, 1);  // DE - инвертировано
+  mim_tr_init(&mim.tr_lvl[1], &huart8, GPIOB, 9, GPIOB, 9, &htim3, &mim_data, 0);  // DE - не инвертировано
+  mim_tr_init(&mim.tr_lvl[2], &huart4, GPIOA, 12, GPIOA, 12, &htim5, &mim_data, 1);  // DE - инвертировано
+  mim_tr_init(&mim.tr_lvl[3], &huart5, GPIOD, 3, GPIOD, 3, &htim2, &mim_data, 0);    // DE - не инвертировано //TODO: Добавить обработку остальных каналов UART
   //
   LocRegistrationRec[0].VarPtr = &CANMasterRx;
   LocRegistrationRec[0].VarLeng = sizeof(CANMasterRx);
@@ -238,12 +233,9 @@ int main(void)
           case MIM_INF_ID_SET_TIME:
             clock_set_time_s_and_ms(*(uint32_t*)&mim.tr_lvl[num].data_map->unit[cmd_num].data.fields.array[0], 
                                     *(uint16_t*)&mim.tr_lvl[num].data_map->unit[cmd_num].data.fields.array[4]);
-            printf("MIM cmd %d set_time: sec %08X part %02X\n", (int)id_val,
+            printf("%s: MIM cmd %d set_time: sec %08X part %02X\n", now(), (int)id_val,
                                                               *(uint32_t*)&mim.tr_lvl[num].data_map->unit[cmd_num].data.fields.array[0], 
                                                               *(uint16_t*)&mim.tr_lvl[num].data_map->unit[cmd_num].data.fields.array[4]);
-            printf("current time: ");
-            clock_get_bcd_array_with_fractional_part(uint8_array);
-            printf_buff(uint8_array, 8, '\n');
             break;
           case MIM_INF_ID_SET_SETTINGS:
             memcpy((uint8_t*)cmd_stuct.array, (uint8_t*)&mim.tr_lvl[num].data_map->unit[cmd_num].data.fields.array[0], 16);
@@ -279,7 +271,7 @@ int main(void)
               }
             }
             else mim_error_collector(&mim, MIM_ERROR_CMD_PARAM, MIM_ERROR_TYPE_SET);
-            printf("MIM cmd <%d> set settings: label <0x%04X> num <%d>\n",  id_val, 
+            printf("%s: MIM cmd <%d> set settings: label <0x%04X> num <%d>\n", now(),  id_val, 
                                                                             cmd_stuct.fl.label, 
                                                                             cmd_stuct.fl.cmd_num);
             break;
@@ -306,7 +298,7 @@ int main(void)
               }
             }
             else mim_error_collector(&mim, MIM_ERROR_EXCMD_PARAM, MIM_ERROR_TYPE_SET);
-            printf("MIM excmd <%d> set settings: label <0x%04X> num <%d>\n",  id_val, 
+            printf("%s: MIM excmd <%d> set settings: label <0x%04X> num <%d>\n", now(),  id_val, 
                                                                             exp_cmd_stuct.fl.label, 
                                                                             exp_cmd_stuct.fl.cmd_num);
             break;
@@ -315,7 +307,7 @@ int main(void)
           case MIM_INF_ID_S_TX_CFG_REQ:
             if(mim.ctrl.mode == MIM_MODE_TRANSCEIVER){
               memcpy((uint8_t*)&cfg_req, mim.tr_lvl[num].data_map->unit[cmd_num].data.array, sizeof(type_MIM_INF_ID_CFG_REQ));
-              printf("MIM cmd <%d> tx cfg resp: module <%d>\n", id_val, cfg_req.fl.module);
+              printf("%s: MIM cmd <%d> tx cfg resp: module <%d>\n", now(), id_val, cfg_req.fl.module);
               if ((cfg_req.fl.packet_type == 0x01) || (cfg_req.fl.packet_type == 0x21)) {
                 if ((cfg_req.fl.module < MIM_MODULE_NUM) && (cfg_req.fl.module >= 1)){
                   if (radio_tx_get_settings(&radio[cfg_req.fl.module - 1]) == 0){
@@ -348,13 +340,13 @@ int main(void)
                 else mim_error_collector(&mim, MIM_ERROR_CMD_PARAM, MIM_ERROR_TYPE_SET);
               }
               else mim_error_collector(&mim, MIM_ERROR_CMD_PARAM, MIM_ERROR_TYPE_SET);
-              printf("MIM cmd %d send data to ASP: module %04X\n", id_val, tx_frame.fl.module);
+              printf("%s: MIM cmd %d send data to ASP: module %04X\n", now(), id_val, tx_frame.fl.module);
             }
             else{mim_error_collector(&mim, MIM_ERROR_CMD_PARAM, MIM_ERROR_TYPE_SET);};
             break;
           case MIM_INF_ID_RX_CFG_REQ:
             memcpy((uint8_t*)&cfg_req, mim.tr_lvl[num].data_map->unit[cmd_num].data.array, sizeof(type_MIM_INF_ID_CFG_REQ));
-            printf("MIM cmd <%d> rx cfg resp: module <%d>\n", id_val, cfg_req.fl.module);
+            printf("%s: MIM cmd <%d> rx cfg resp: module <%d>\n", now(), id_val, cfg_req.fl.module);
             if (cfg_req.fl.packet_type == 0x11) {
               if ((cfg_req.fl.module < MIM_MODULE_NUM) && (cfg_req.fl.module >= 1)){
                 if (radio_rx_get_settings(&radio[cfg_req.fl.module - 1]) == 0){
@@ -373,7 +365,7 @@ int main(void)
             break;
           case MIM_INF_ID_RX_CFG_WR:
             memcpy((uint8_t*)&rx_cfg, mim.tr_lvl[num].data_map->unit[cmd_num].data.array, sizeof(type_MIM_INF_ID_RX_CFG));
-            printf("MIM cmd <%d> rx cfg wr: module <%d>\n", id_val, cfg_req.fl.module);
+            printf("%s: MIM cmd <%d> rx cfg wr: module <%d>\n", now(), id_val, cfg_req.fl.module);
             if (rx_cfg.fl.packet_type == 0x13) {
               if ((rx_cfg.fl.module < MIM_MODULE_NUM) && (rx_cfg.fl.module >= 1)){
                 radio_rx_set_settings(&radio[rx_cfg.fl.module - 1], &rx_cfg.fl.rx_set[0]);
@@ -391,7 +383,7 @@ int main(void)
             }
             break;
           case MIM_INF_ID_MFR_SEGM_DATA_WR:
-            printf("MIM cmd %d segm_data: redirect to ID-%d \n", id_val, mim.tr_lvl[num].data_map->unit[cmd_num].data.fields.id);
+            printf("%s: MIM cmd %d segm_data: redirect to ID-%d \n", now(), id_val, mim.tr_lvl[num].data_map->unit[cmd_num].data.fields.id);
 						// перенаправление данных на нужный ID как команду
             if (mim_tr_redirect_segm_data_cmd(&mim.tr_lvl[num])) {}
             else mim_error_collector(&mim, MIM_ERROR_CMD_PARAM, MIM_ERROR_TYPE_SET);
@@ -407,7 +399,7 @@ int main(void)
         //
         switch (id_val){
             case MIM_INF_ID_RX_DATA_RD:
-							printf("MIM data <%d> rx data read\n", id_val);
+							printf("%s: MIM data <%d> rx data read\n", now(), id_val);
               rx_packet.fl.packet_type = 0x14;
 							if(mim_read_rx_fifo(&mim, &rx_packet)){
                 rx_packet.fl.packet_size = 4 + rx_packet.fl.packet.tot_size;
@@ -418,12 +410,12 @@ int main(void)
               mem_tr_inf_receive_id_data(mim.tr_lvl[0].data_map, MIM_INF_ID_RX_DATA_RD, (uint8_t*)&rx_packet.tr_lvl.array, rx_packet.fl.packet_size);
 							break;
             case MIM_INF_ID_MFR_DATA_RD:
-							printf("MIM data <%d> mfr rx data read\n", (int)id_val);
+							printf("%s: MIM data <%d> mfr rx data read\n", now(), (int)id_val);
 							mim_read_rx_fifo_and_form_mrf_packet(&mim, uint8_array);
               mem_tr_inf_receive_id_data(mim.tr_lvl[0].data_map, MIM_INF_ID_MFR_DATA_RD, uint8_array, 1014);
 							break;
             case MIM_INF_ID_EXP_DATA_RD:
-							printf("EXP data <%d>\n", (int)id_val);
+							printf("%s: EXP data <%d>\n", now(), (int)id_val);
               nand_lin_read_frame(ex.nand_ptr, ex.rx_nand_buffer);
               mem_tr_inf_receive_id_data(mim.tr_lvl[0].data_map, MIM_INF_ID_EXP_DATA_RD, ex.rx_nand_buffer, NAND_FRAME_SIZE);
 							break;
@@ -492,16 +484,16 @@ void SystemClock_Config(void)
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
-  if(huart == &huart8){ //RS_485 channel МА1
+  if(huart == &huart7){ //RS_485 channel МА1
 		mim_tr_it_tx_cb(&mim.tr_lvl[0]);
 	}
-  if(huart == &huart5){ //RS_485 channel МА2
+  if(huart == &huart4){ //RS_485 channel МА2
 		mim_tr_it_tx_cb(&mim.tr_lvl[2]);
 	}
-  if(huart == &huart7){ //RS_485 channel МФР1
+  if(huart == &huart8){ //RS_485 channel МФР1
 		mim_tr_it_tx_cb(&mim.tr_lvl[1]);
 	}
-  if(huart == &huart4){ //RS_485 channel МФР2
+  if(huart == &huart5){ //RS_485 channel МФР2
 		mim_tr_it_tx_cb(&mim.tr_lvl[3]);
 	}
 }
@@ -511,52 +503,52 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   if(huart == &huart1){ //system uart
 		suart_rx_irq_handler(&suart);
 	}
-  if(huart == &huart8){ //RS_485 channel МА1
+  if(huart == &huart7){ //RS_485 channel МА1
 		mim_tr_it_rx_uart_cb(&mim.tr_lvl[0]);
 	}
-  if(huart == &huart5){ //RS_485 channel МА2
+  if(huart == &huart4){ //RS_485 channel МА2
 		mim_tr_it_rx_uart_cb(&mim.tr_lvl[2]);
 	}
-  if(huart == &huart7){ //RS_485 channel МФР1
+  if(huart == &huart8){ //RS_485 channel МФР1
 		mim_tr_it_rx_uart_cb(&mim.tr_lvl[1]);
 	}
-  if(huart == &huart4){ //RS_485 channel МФР2
+  if(huart == &huart5){ //RS_485 channel МФР2
 		mim_tr_it_rx_uart_cb(&mim.tr_lvl[3]);
 	}
 }
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
-  if(huart == &huart8){ //RS_485 channel МА1
-		printf("uart error %d\n", (int)HAL_UART_GetError(huart));
+  if(huart == &huart7){ //RS_485 channel МА1
+		printf("%s: uart error %d\n", now(), (int)HAL_UART_GetError(huart));
     mim_tr_it_rx_error_cb(&mim.tr_lvl[0]);
 	}
-  if(huart == &huart5){ //RS_485 channel МА2
-		printf("uart error %d\n", (int)HAL_UART_GetError(huart));
+  if(huart == &huart4){ //RS_485 channel МА2
+		printf("%s: uart error %d\n", now(), (int)HAL_UART_GetError(huart));
     mim_tr_it_rx_error_cb(&mim.tr_lvl[2]);
 	}
-  if(huart == &huart7){ //RS_485 channel МФР1
-		printf("uart error %d\n", (int)HAL_UART_GetError(huart));
+  if(huart == &huart8){ //RS_485 channel МФР1
+		printf("%s: uart error %d\n", now(), (int)HAL_UART_GetError(huart));
     mim_tr_it_rx_error_cb(&mim.tr_lvl[1]);
 	}
-  if(huart == &huart4){ //RS_485 channel МФР2
-		printf("uart error %d\n", (int)HAL_UART_GetError(huart));
+  if(huart == &huart5){ //RS_485 channel МФР2
+		printf("%s: uart error %d\n", now(), (int)HAL_UART_GetError(huart));
     mim_tr_it_rx_error_cb(&mim.tr_lvl[3]);
 	}
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	if (htim == &htim3) { //RS_485 channel МА1
+	if (htim == &htim4) { //RS_485 channel МА1
 		mim_tr_it_rx_timer_cb(&mim.tr_lvl[0]);
 	}
-	if (htim == &htim4) { //RS_485 channel МА2
+	if (htim == &htim5) { //RS_485 channel МА2
 		mim_tr_it_rx_timer_cb(&mim.tr_lvl[2]);
 	}
-  if (htim == &htim2) { //RS_485 channel МФР1
+  if (htim == &htim3) { //RS_485 channel МФР1
 		mim_tr_it_rx_timer_cb(&mim.tr_lvl[1]);
 	}
-  if (htim == &htim5) { //RS_485 channel МФР2
+  if (htim == &htim2) { //RS_485 channel МФР2
 		mim_tr_it_rx_timer_cb(&mim.tr_lvl[3]);
 	}
   if (htim == &htim9) { // system_uart
@@ -568,35 +560,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 }
 
 /* USER CODE END 4 */
-
- /* MPU Configuration */
-
-void MPU_Config(void)
-{
-  MPU_Region_InitTypeDef MPU_InitStruct = {0};
-
-  /* Disables the MPU */
-  HAL_MPU_Disable();
-
-  /** Initializes and configures the Region and the memory to be protected
-  */
-  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
-  MPU_InitStruct.BaseAddress = 0x0;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
-  MPU_InitStruct.SubRegionDisable = 0x87;
-  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-  MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
-  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
-  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
-  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-
-  HAL_MPU_ConfigRegion(&MPU_InitStruct);
-  /* Enables the MPU */
-  HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
-
-}
 
 /**
   * @brief  This function is executed in case of error occurrence.

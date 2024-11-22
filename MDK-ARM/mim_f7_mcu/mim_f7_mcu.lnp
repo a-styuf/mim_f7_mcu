@@ -48,6 +48,8 @@
 "mim_f7_mcu\mim.o"
 "mim_f7_mcu\mim_rs485_tr_lvl.o"
 "mim_f7_mcu\mim_rs485_tr_lvl_data_map.o"
+"mim_f7_mcu\modbus.o"
+"mim_f7_mcu\modbus_interface.o"
 "mim_f7_mcu\my_gpio.o"
 "mim_f7_mcu\nand.o"
 "mim_f7_mcu\pwr.o"

@@ -81,7 +81,7 @@
           </BeforeMake>
           <AfterMake>
             <RunUserProg1>0</RunUserProg1>
-            <RunUserProg2>0</RunUserProg2>
+            <RunUserProg2>1</RunUserProg2>
             <UserProg1Name></UserProg1Name>
             <UserProg2Name></UserProg2Name>
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
@@ -1057,6 +1057,16 @@
               <FilePath>..\my_files\mim_rs485_tr_lvl_data_map.c</FilePath>
             </File>
             <File>
+              <FileName>modbus.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\my_files\modbus.c</FilePath>
+            </File>
+            <File>
+              <FileName>modbus_interface.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\my_files\modbus_interface.c</FilePath>
+            </File>
+            <File>
               <FileName>my_gpio.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\my_files\my_gpio.c</FilePath>
@@ -1116,6 +1126,11 @@
               <FileType>1</FileType>
               <FilePath>..\aa_lib\canvar.c</FilePath>
             </File>
+            <File>
+              <FileName>fw_ver.inc</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\aa_lib\fw_ver.inc</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -1137,7 +1152,7 @@
           <targetInfo name="mim_f7_mcu"/>
         </targetInfos>
       </component>
-      <component Cbundle="ARM Compiler" Cclass="Compiler" Cgroup="I/O" Csub="STDOUT" Cvariant="Breakpoint" Cvendor="Keil" Cversion="1.2.0" condition="ARMCC Cortex-M">
+      <component Cbundle="ARM Compiler" Cclass="Compiler" Cgroup="I/O" Csub="STDOUT" Cvariant="ITM" Cvendor="Keil" Cversion="1.2.0" condition="ARMCC Cortex-M with ITM">
         <package name="ARM_Compiler" schemaVersion="1.6.3" url="http://www.keil.com/pack/" vendor="Keil" version="1.6.3"/>
         <targetInfos>
           <targetInfo name="mim_f7_mcu"/>

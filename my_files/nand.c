@@ -16,7 +16,7 @@ void nand_init(type_NAND *nand_ptr)
   nand_reset_parameters(nand_ptr);
   nand_ptr->hnand = &hnand1;
   //
-  printf_time(); printf("nand start init\n");
+  
   //
   nand_ptr->frame_size_b = NAND_FRAME_SIZE;
   nand_ptr->page_size_b = nand_ptr->hnand->Config.PageSize;
@@ -58,7 +58,13 @@ void nand_init(type_NAND *nand_ptr)
   // nand_read_frame(nand_ptr, 0, 4, nand_ptr->rd_frame);
   // nand_read_frame(nand_ptr, 0, 5, nand_ptr->rd_frame);
   //
-  printf_time(); printf("nand stop init\n");
+  printf("%s: NAND init 0x%02X %02X %02X %02X %02X %02X (0xECD6xxxxxxxx - is OK)\n", now(), 
+                                                                                      nand_ptr->id.array[0], 
+                                                                                      nand_ptr->id.array[1], 
+                                                                                      nand_ptr->id.array[2], 
+                                                                                      nand_ptr->id.array[3], 
+                                                                                      nand_ptr->id.array[4], 
+                                                                                      nand_ptr->id.array[5]);
 }
 
 void nand_reset_parameters(type_NAND *nand_ptr)

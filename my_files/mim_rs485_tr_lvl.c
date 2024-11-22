@@ -11,13 +11,22 @@
 
 #include "mim_rs485_tr_lvl.h"
 
-void mim_tr_init(type_MIM_TR_LVL_Interface* mim_tr_ptr, UART_HandleTypeDef* huart, GPIO_TypeDef* ch0_ena_bank, uint16_t ch0_ena_line, GPIO_TypeDef* ch1_ena_bank, uint16_t ch1_ena_line, TIM_HandleTypeDef* tim, type_MIM_INF_ID_DATA* data_map)
+void mim_tr_init(type_MIM_TR_LVL_Interface* mim_tr_ptr, UART_HandleTypeDef* huart, GPIO_TypeDef* ch0_ena_bank, uint16_t ch0_ena_line, GPIO_TypeDef* ch1_ena_bank, uint16_t ch1_ena_line, TIM_HandleTypeDef* tim, type_MIM_INF_ID_DATA* data_map, uint8_t de_invert)
 {
     mim_tr_ptr->huart = huart;
     mim_tr_ptr->ch0_ena = gpio_parameters_set(ch0_ena_bank, ch0_ena_line);
     mim_tr_ptr->ch1_ena = gpio_parameters_set(ch1_ena_bank, ch1_ena_line);
     mim_tr_ptr->used_rx_ch_de = MIM_TR_CH0;
     mim_tr_ptr->tim = tim;
+    mim_tr_ptr->de_invert = de_invert;
+    if (mim_tr_ptr->de_invert) {
+        gpio_set(&mim_tr_ptr->ch0_ena, 1);
+        gpio_set(&mim_tr_ptr->ch1_ena, 1);
+    }
+    else {
+        gpio_set(&mim_tr_ptr->ch0_ena, 0);
+        gpio_set(&mim_tr_ptr->ch1_ena, 0);
+    }
     __HAL_TIM_CLEAR_FLAG(tim, TIM_FLAG_UPDATE);
     mim_tr_ptr->data_map = data_map;
     //
@@ -100,7 +109,9 @@ void mim_tr_tx_frame_fill(type_MIM_TR_LVL_Interface* mim_tr_ptr, uint8_t flag, u
  */
 void mim_tr_set_de(type_MIM_TR_LVL_Interface* mim_tr_ptr, uint8_t val)
 {
-    uint8_t ch_re = (val&0x01) ? 0x00 : 0x01;
+    uint8_t ch_re = 0;
+	if (mim_tr_ptr->de_invert == 0) ch_re = (val&0x01) ? 0x01 : 0x00;
+    else if (mim_tr_ptr->de_invert != 0) ch_re = (val&0x01) ? 0x00 : 0x01;
     switch(mim_tr_ptr->used_rx_ch_de){
         case(MIM_TR_CH0):
             gpio_set(&mim_tr_ptr->ch0_ena, ch_re);

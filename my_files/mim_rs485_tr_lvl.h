@@ -92,6 +92,7 @@ typedef struct
     uint16_t tx_data_size;
     uint8_t tx_addr;
     uint8_t used_rx_ch_de;
+    uint8_t de_invert;
     //
     uint8_t rx_buffer[MIM_TR_FRAME_SIZE_MAX];
     uint16_t rx_ptr;
@@ -111,7 +112,7 @@ typedef struct
 
 #pragma pack(pop)
 
-void mim_tr_init(type_MIM_TR_LVL_Interface* mim_tr_ptr, UART_HandleTypeDef* huart, GPIO_TypeDef* ch0_ena_bank, uint16_t ch0_ena_line, GPIO_TypeDef* ch1_ena_bank, uint16_t ch1_ena_line, TIM_HandleTypeDef* tim, type_MIM_INF_ID_DATA* data_map);
+void mim_tr_init(type_MIM_TR_LVL_Interface* mim_tr_ptr, UART_HandleTypeDef* huart, GPIO_TypeDef* ch0_ena_bank, uint16_t ch0_ena_line, GPIO_TypeDef* ch1_ena_bank, uint16_t ch1_ena_line, TIM_HandleTypeDef* tim, type_MIM_INF_ID_DATA* data_map, uint8_t de_invert);
 uint16_t mim_tr_form_tx_data(type_MIM_TR_LVL_Interface* mim_tr_ptr);
 void mim_tr_tx_frame_fill(type_MIM_TR_LVL_Interface* mim_tr_ptr, uint8_t flag, uint8_t id, uint8_t* data, uint16_t data_len);
 void mim_tr_set_de(type_MIM_TR_LVL_Interface* mim_tr_ptr, uint8_t val);

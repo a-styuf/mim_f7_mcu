@@ -46,7 +46,7 @@ void mim_tr_inf_init(type_MIM_INF_ID_DATA* data_ptr)
     cmd_num = mim_tr_inf_set_unit(++cmd_num, data_ptr, MIM_INF_ID_MFR_SEGM_DATA_WR,  	MIM_INF_LVL_MODE_WR, 64, 0);
     // ...
 		// контроль инициализации
-		printf("\tMIM TR LVL cmd init (normal is %d): %d\n", MIM_INF_ID_NUM, ++cmd_num);
+		printf("%s: MIM TR LVL cmd init (normal is %d): %d\n", now(), MIM_INF_ID_NUM, ++cmd_num);
 }
 
 /**

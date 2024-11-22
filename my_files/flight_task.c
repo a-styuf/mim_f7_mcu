@@ -82,7 +82,7 @@ int8_t ft_process(typeFT *ft_ptr, uint32_t time_ms)
  */
 int8_t ft_set_mode(typeFT *ft_ptr, uint8_t mode)
 {
-    printf_time(); printf("ft_<%d>_mode_set:", ft_ptr->self_num);
+    printf("%s: ft_<%d>_mode_set:", now(), ft_ptr->self_num);
     switch(mode){
         case FT_MODE_OFF:
             __ft_step_cast_reset(ft_ptr);
@@ -229,8 +229,7 @@ int32_t ft_func_run(typeFT* ft_ptr)
                 }
             }
             //  
-            printf_time();
-            printf("ft_<%d> st_<%d> func: t<%ld>c<%ld>ret<%ld>, data: ", ft_ptr->self_num, ft_ptr->ctrl.step_num, (long)type, (long)cmd, (long)ft_ptr->ctrl.func_ret_val);
+            printf("%s: ft_<%d> st_<%d> func: t<%ld>c<%ld>ret<%ld>, data: ", now(), ft_ptr->self_num, ft_ptr->ctrl.step_num, (long)type, (long)cmd, (long)ft_ptr->ctrl.func_ret_val);
             printf_buff(ft_ptr->ctrl.data_to_save, MIN(10, ft_ptr->ctrl.data_len), '\n');
             // сброс значений данных для сохранения
             memset(ft_ptr->ctrl.data_to_save, 0xFE, sizeof(ft_ptr->ctrl.data_to_save));
@@ -254,15 +253,13 @@ int32_t ft_function_retval_check(typeFT* ft_ptr)
         case FT_FUN_RET_BRANCH_RPT_BREAK:
             if(ft_ptr->ctrl.step_cast.fields.settings & FT_STATUS_BRANCH_RPT_BREAK){
                 ft_ptr->ctrl.rpt_value = 0;
-                printf_time();
-                printf("ft_<%d> rpt break\n", ft_ptr->self_num);
+                printf("%s: ft_<%d> rpt break\n", now(), ft_ptr->self_num);
             }
             break;
         case FT_FUN_RET_BRANCH_FT_BREAK:
             if(ft_ptr->ctrl.step_cast.fields.settings & FT_FUN_RET_BRANCH_FT_BREAK){
                 ft_ptr->ctrl.step_num = FT_LEN_STEP;
-                printf_time();
-                printf("ft_<%d> ft break\n", ft_ptr->self_num);
+                printf("%s: ft_<%d> ft break\n", now(), ft_ptr->self_num);
             }
         break;
         default:
