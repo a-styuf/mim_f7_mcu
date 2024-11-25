@@ -1,8 +1,8 @@
 Dependencies for Project 'mim_f7_mcu', Target 'mim_f7_mcu': (DO NOT MODIFY !)
 CompilerVersion: 5060960::V5.06 update 7 (build 960)::ARMCC
 F (startup_stm32f767xx.s)(0x67404B47)(--cpu Cortex-M7.fp.dp -g --apcs=interwork -I.\RTE\_mim_f7_mcu-IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IC:\Keil_v5\ARM\PACK\Keil\STM32F7xx_DFP\2.14.0\Drivers\CMSIS\Device\ST\STM32F7xx\Include--pd "__UVISION_VERSION SETA 536" --pd "_RTE_ SETA 1" --pd "STM32F767xx SETA 1" --pd "_RTE_ SETA 1"--list startup_stm32f767xx.lst --xref -o mim_f7_mcu\startup_stm32f767xx.o --depend mim_f7_mcu\startup_stm32f767xx.d)
-I (..\aa_lib\fw_ver.inc)(0x67405BBD)
-F (../Core/Src/main.c)(0x67405456)(--c99 -c --cpu Cortex-M7.fp.dp -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F7xx_HAL_Driver/Inc -I ../Drivers/STM32F7xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F7xx/Include -I ../Drivers/CMSIS/Include -I ../aa_lib -I ../my_files-I.\RTE\_mim_f7_mcu-IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IC:\Keil_v5\ARM\PACK\Keil\STM32F7xx_DFP\2.14.0\Drivers\CMSIS\Device\ST\STM32F7xx\Include-D__UVISION_VERSION="536" -D_RTE_ -DSTM32F767xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F767xx-o mim_f7_mcu\main.o --omf_browse mim_f7_mcu\main.crf --depend mim_f7_mcu\main.d)
+I (..\aa_lib\fw_ver.inc)(0x674446A6)
+F (../Core/Src/main.c)(0x674445EB)(--c99 -c --cpu Cortex-M7.fp.dp -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F7xx_HAL_Driver/Inc -I ../Drivers/STM32F7xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F7xx/Include -I ../Drivers/CMSIS/Include -I ../aa_lib -I ../my_files-I.\RTE\_mim_f7_mcu-IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IC:\Keil_v5\ARM\PACK\Keil\STM32F7xx_DFP\2.14.0\Drivers\CMSIS\Device\ST\STM32F7xx\Include-D__UVISION_VERSION="536" -D_RTE_ -DSTM32F767xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F767xx-o mim_f7_mcu\main.o --omf_browse mim_f7_mcu\main.crf --depend mim_f7_mcu\main.d)
 I (../Core/Inc/main.h)(0x673FDE52)
 I (../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal.h)(0x66B5FEE3)
 I (../Core/Inc/stm32f7xx_hal_conf.h)(0x673FDE52)
@@ -2664,7 +2664,7 @@ I (../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_uart_ex.h)(0x66B5FEE3)
 I (C:\Keil_v5\ARM\ARMCC\include\string.h)(0x6025318E)
 I (..\aa_lib\canvar.h)(0x673FDE01)
 I (..\aa_lib\canv.h)(0x673FDE01)
-F (..\aa_lib\fw_ver.inc)(0x67405BBD)()
+F (..\aa_lib\fw_ver.inc)(0x674446A6)()
 F (C:\Keil_v5\ARM\PACK\Keil\ARM_Compiler\1.6.3\Source\retarget_io.c)(0x584E37CE)(--c99 -c --cpu Cortex-M7.fp.dp -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F7xx_HAL_Driver/Inc -I ../Drivers/STM32F7xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F7xx/Include -I ../Drivers/CMSIS/Include -I ../aa_lib -I ../my_files-I.\RTE\_mim_f7_mcu-IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IC:\Keil_v5\ARM\PACK\Keil\STM32F7xx_DFP\2.14.0\Drivers\CMSIS\Device\ST\STM32F7xx\Include-D__UVISION_VERSION="536" -D_RTE_ -DSTM32F767xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F767xx-o mim_f7_mcu\retarget_io.o --omf_browse mim_f7_mcu\retarget_io.crf --depend mim_f7_mcu\retarget_io.d)
 I (C:\Keil_v5\ARM\ARMCC\include\string.h)(0x6025318E)
 I (C:\Keil_v5\ARM\ARMCC\include\stdint.h)(0x6025318E)

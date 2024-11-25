@@ -3,7 +3,7 @@
 <title>Static Call Graph - [mim_f7_mcu\mim_f7_mcu.axf]</title></head>
 <body><HR>
 <H1>Static Call Graph for image mim_f7_mcu\mim_f7_mcu.axf</H1><HR>
-<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060960: Last Updated: Fri Nov 22 17:24:14 2024
+<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060960: Last Updated: Mon Nov 25 16:43:27 2024
 <BR><P>
 <H3>Maximum Stack Usage =        696 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
 Call chain for Maximum Stack Depth:</H3>
@@ -2065,7 +2065,7 @@ Global Symbols
 <LI><a href="#[20d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;suart_send_cmd
 </UL>
 
-<P><STRONG><a name="[15a]"></a>HAL_UART_RxCpltCallback</STRONG> (Thumb, 70 bytes, Stack size 8 bytes, main.o(i.HAL_UART_RxCpltCallback))
+<P><STRONG><a name="[15a]"></a>HAL_UART_RxCpltCallback</STRONG> (Thumb, 46 bytes, Stack size 8 bytes, main.o(i.HAL_UART_RxCpltCallback))
 <BR><BR>[Stack]<UL><LI>Max Depth = 72<LI>Call Chain = HAL_UART_RxCpltCallback &rArr; mim_tr_it_rx_uart_cb &rArr; mim_tr_it_rx_error_cb &rArr; HAL_UART_Abort &rArr; HAL_DMA_Abort
 </UL>
 <BR>[Calls]<UL><LI><a href="#[15b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;suart_rx_irq_handler

@@ -507,13 +507,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		mim_tr_it_rx_uart_cb(&mim.tr_lvl[0]);
 	}
   if(huart == &huart4){ //RS_485 channel МА2
-		mim_tr_it_rx_uart_cb(&mim.tr_lvl[2]);
+		// mim_tr_it_rx_uart_cb(&mim.tr_lvl[2]);
 	}
   if(huart == &huart8){ //RS_485 channel МФР1
 		mim_tr_it_rx_uart_cb(&mim.tr_lvl[1]);
 	}
   if(huart == &huart5){ //RS_485 channel МФР2
-		mim_tr_it_rx_uart_cb(&mim.tr_lvl[3]);
+		// mim_tr_it_rx_uart_cb(&mim.tr_lvl[3]);
 	}
 }
 
