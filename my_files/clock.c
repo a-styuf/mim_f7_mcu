@@ -29,8 +29,6 @@ void clock_init(void)
   sDate.Date = 1;
 	sDate.WeekDay = 1;
   HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
-  //
-  // printf("RTC->TR = <0x%08lX>\n", hrtc.Instance->TR);
 }
 
 /**

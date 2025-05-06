@@ -20,6 +20,7 @@
 #include "main.h"
 #include "can.h"
 #include "dma.h"
+#include "iwdg.h"
 #include "rtc.h"
 #include "spi.h"
 #include "tim.h"
@@ -40,6 +41,7 @@
 #include "canvar.h"
 #include "nand.h"
 #include "experiment.h"
+#include "ext_mem.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -54,6 +56,7 @@ uint8_t* dev_id_ptr = (uint8_t*)0x8000024;
 char *raw_ver = (char*)0x8000025;
 char version[16] = {0};
 uint8_t dev_id = 0;
+volatile uint8_t systick_counter = 0;
 
 // #define SOFT_VERSION 	 ../aa_lib/fw_ver.inc
 #define IOT_FABR_NUM    (4)       //! 0 - отработочный
@@ -88,6 +91,7 @@ uint16_t uint16_val = 0, uint16_val_2 = 0;
 int32_t id_val = 0;
 uint8_t uint8_val = 0, cfg[16] = {0}, ft_cnt=0;
 typeFTArray task_var;
+typeSingleFrameStruct frame_1, frame_2;
 //
 type_MIM_INF_ID_TX_DATA_WR tx_frame;
 type_MIM_INF_ID_TX_CFG tx_cfg;
@@ -96,6 +100,7 @@ type_MIM_INF_ID_RX_CFG rx_cfg;
 type_MIM_CMD_STRUCT cmd_stuct;
 type_MIM_EXP_CMD_STRUCT exp_cmd_stuct;
 type_MIM_INF_ID_RX_DATA rx_packet;
+type_MEM_CONTROL mem;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -133,6 +138,7 @@ int main(void)
   /* USER CODE END Init */
 
   /* Configure the system clock */
+
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
@@ -144,7 +150,6 @@ int main(void)
   MX_DMA_Init();
   MX_CAN2_Init();
   MX_FMC_Init();
-  MX_RTC_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
   MX_TIM7_Init();
@@ -159,16 +164,20 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM5_Init();
   MX_USART1_UART_Init();
+  MX_RTC_Init();
+  MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
+	HAL_Delay(1);
   sprintf(version, "%c.%c.%c", raw_ver[0], raw_ver[1], raw_ver[2]);
 	dev_id = *dev_id_ptr - '0';
 	//
+	
   printf("\nSW v%s\n", version);
 	printf("\n______ \\_(o_O)_/ ______\n");
   clock_init();
-	printf("%s: Clock init. Now is %d s\n", now(), clock_get_time_s());
-	HAL_Delay(5);
-  printf("%s: Clock after 5 ms delay\n", now());
+	printf("%s: Clock init\n", now());
+	HAL_Delay(100);
+  printf("%s: Clock after 100 ms delay\n", now());
 	printf("%s: Marafon Interface Module (MIM): dev_id <%d>, version <%s> \n", now(), dev_id, version);
   // flight task init
   ft_cnt = 0; uint8_val = 0;
@@ -179,6 +188,11 @@ int main(void)
   // main module init
   suart_init(&suart, &huart1, &htim9);
   pwr_init(&pwr, &suart);
+  // инициализация памяти
+  ext_mem_init(&mem, &hspi2, IOT_FABR_NUM, 0x0F);
+  ext_mem_get_cfg_frame(&mem, EXT_MEM_SELF_CFG_FRAME_1_NUM, &frame_1);
+  ext_mem_part_apply_cfg(&mem, frame_1);
+  // инициализация NAND
   nand_init(&nand);
   ex_init(&ex, &nand, MIM, IOT_FABR_NUM, dev_id);
   mim_init(&mim, MIM, version, &pwr, IOT_FABR_NUM, dev_id, radio, &ex);
@@ -220,6 +234,7 @@ int main(void)
 		HAL_GPIO_WritePin(GPIOC, 1<<15, GPIO_PIN_SET);
     tp_handler(&tp);
 		HAL_GPIO_WritePin(GPIOC, 1<<15, GPIO_PIN_RESET);
+		
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -424,6 +439,7 @@ int main(void)
       HAL_GPIO_WritePin(GPIOC, 1<<13, GPIO_PIN_RESET);
       }
     }
+		HAL_IWDG_Refresh(&hiwdg);
   }
   /* USER CODE END 3 */
 }
@@ -440,7 +456,7 @@ void SystemClock_Config(void)
   /** Configure LSE Drive Capability
   */
   HAL_PWR_EnableBkUpAccess();
-  __HAL_RCC_LSEDRIVE_CONFIG(RCC_LSEDRIVE_LOW);
+  __HAL_RCC_LSEDRIVE_CONFIG(RCC_LSEDRIVE_MEDIUMLOW);
 
   /** Configure the main internal regulator output voltage
   */
@@ -450,9 +466,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE|RCC_OSCILLATORTYPE_LSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE
+                              |RCC_OSCILLATORTYPE_LSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.LSEState = RCC_LSE_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 15;
@@ -481,6 +499,11 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void HAL_SYSTICK_Callback(void)
+{
+	systick_counter++;
+}
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {

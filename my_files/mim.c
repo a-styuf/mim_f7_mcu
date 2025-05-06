@@ -355,10 +355,11 @@ int8_t mim_write_rx_fifo(type_MIM_DEVICE* mim_ptr, type_MIM_INF_ID_RX_DATA* rx_f
  */
 int8_t mim_write_rx_fifo_and_save_exp_data(type_MIM_DEVICE* mim_ptr, type_MIM_INF_ID_RX_DATA* rx_frame_ptr)
 {
-	mim_write_rx_fifo(mim_ptr, rx_frame_ptr);
+	uint8_t status = 0;
+	status = mim_write_rx_fifo(mim_ptr, rx_frame_ptr);
 	// анализ данных для эксперимента
 	ex_analyze_rx_frame(mim_ptr->ex_ptr, *rx_frame_ptr);
-	return 0;
+	return status;
 }
 
 /**

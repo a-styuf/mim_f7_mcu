@@ -57,6 +57,20 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define PPS_EN_Pin GPIO_PIN_14
+#define PPS_EN_GPIO_Port GPIOE
+#define USART3_DE_Pin GPIO_PIN_15
+#define USART3_DE_GPIO_Port GPIOE
+#define nCS1_Pin GPIO_PIN_8
+#define nCS1_GPIO_Port GPIOD
+#define nCS2_Pin GPIO_PIN_9
+#define nCS2_GPIO_Port GPIOD
+#define nUART7_DE_Pin GPIO_PIN_11
+#define nUART7_DE_GPIO_Port GPIOA
+#define nUART4_DE_Pin GPIO_PIN_12
+#define nUART4_DE_GPIO_Port GPIOA
+#define UART8_DE_Pin GPIO_PIN_9
+#define UART8_DE_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
