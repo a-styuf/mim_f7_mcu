@@ -11,9 +11,23 @@
 
 #include "mim_rs485_tr_lvl.h"
 
-void mim_tr_init(type_MIM_TR_LVL_Interface* mim_tr_ptr, UART_HandleTypeDef* huart, GPIO_TypeDef* ch0_ena_bank, uint16_t ch0_ena_line, GPIO_TypeDef* ch1_ena_bank, uint16_t ch1_ena_line, TIM_HandleTypeDef* tim, type_MIM_INF_ID_DATA* data_map, uint8_t de_invert)
+/**
+ * @brief инициализация интерфейса передачи данных по RS-485 для уровня транспортного протокола
+ * 
+ * @param mim_tr_ptr     указатель на структуру интерфейса передачи данных
+ * @param huart          указатель на структуру UART HAL
+ * @param ch0_ena_bank   указатель на порт GPIO для управления DE/RE первого канала
+ * @param ch0_ena_line   номер линии GPIO для управления DE/RE первого канала
+ * @param ch1_ena_bank   указатель на порт GPIO для управления DE/RE второго канала
+ * @param ch1_ena_line   номер линии GPIO для управления DE/RE второго канала
+ * @param tim            указатель на структуру таймера для обработки таймингов приема
+ * @param data_map       указатель на структуру сопоставления ID и данных
+ * @param de_invert      флаг инверсии логики управления DE/RE (0 - обычная, 1 - инвертированная)
+ */
+void mim_tr_init(type_MIM_TR_LVL_Interface* mim_tr_ptr, UART_HandleTypeDef* huart, IRQn_Type huart_irq, GPIO_TypeDef* ch0_ena_bank, uint16_t ch0_ena_line, GPIO_TypeDef* ch1_ena_bank, uint16_t ch1_ena_line, TIM_HandleTypeDef* tim, type_MIM_INF_ID_DATA* data_map, uint8_t de_invert)
 {
     mim_tr_ptr->huart = huart;
+    mim_tr_ptr->huart_irq = huart_irq;
     mim_tr_ptr->ch0_ena = gpio_parameters_set(ch0_ena_bank, ch0_ena_line);
     mim_tr_ptr->ch1_ena = gpio_parameters_set(ch1_ena_bank, ch1_ena_line);
     mim_tr_ptr->used_rx_ch_de = MIM_TR_CH0;
@@ -36,6 +50,10 @@ void mim_tr_init(type_MIM_TR_LVL_Interface* mim_tr_ptr, UART_HandleTypeDef* huar
     mim_tr_ptr->rx_ready = 0;
     mim_tr_ptr->rx_packet_num = 0;
     memset(mim_tr_ptr->rx_buffer, 0x00, sizeof(mim_tr_ptr->rx_buffer));
+    mim_tr_ptr->rx_data_len = 0;
+    mim_tr_ptr->rx_id = 0;
+    mim_tr_ptr->channel_ena = 1;
+    // Начинаем прием данных по UART через прерывание 
     HAL_UART_Receive_IT(mim_tr_ptr->huart, &mim_tr_ptr->rx_buffer[mim_tr_ptr->rx_ptr], 1);
 }
 
@@ -171,7 +189,7 @@ void mim_tr_it_tx_cb(type_MIM_TR_LVL_Interface* mim_tr_ptr)
 
 
 /**
- * @brief обработчик прерывания от таймера о достижении интервала приема в ~3,5 байта данных
+ * @brief обработчик прерывания от таймера о достижении интервала приема в ~3,5 байта данных после последнего принятого байта
  * 
  * @param mim_tr_ptr
  */
@@ -180,7 +198,7 @@ void mim_tr_it_rx_timer_cb(type_MIM_TR_LVL_Interface* mim_tr_ptr)
     HAL_TIM_Base_Stop_IT(mim_tr_ptr->tim);
     HAL_UART_Abort_IT(mim_tr_ptr->huart);
     //
-    if (mim_tr_it_check_rx_packet(mim_tr_ptr) == 0){
+    if (mim_tr_it_check_rx_packet(mim_tr_ptr) == 0){  // проверка корректности принятого пакета
         mim_tr_ptr->rx_ready = 1;
         mim_tr_ptr->rx_packet_num += 1;
         // формирование ответа
@@ -208,7 +226,7 @@ void mim_tr_it_rx_timer_cb(type_MIM_TR_LVL_Interface* mim_tr_ptr)
                         break;
                         default:
                             //TODO: ошибка некорректных флагов
-                        break;
+                        break; 
                 }
         }
         else{
@@ -310,27 +328,30 @@ void mim_tr_rd_data_proccess(type_MIM_TR_LVL_Interface* mim_tr_ptr, uint8_t rx_i
  */
 void mim_tr_it_rx_uart_cb(type_MIM_TR_LVL_Interface* mim_tr_ptr)
 {
-    if (mim_tr_ptr->rx_ptr < MIM_TR_FRAME_SIZE_MAX) {
-        HAL_UART_Receive_IT(mim_tr_ptr->huart, &mim_tr_ptr->rx_buffer[++mim_tr_ptr->rx_ptr], 1);
+    if(mim_tr_ptr->channel_ena){
+        if (mim_tr_ptr->rx_ptr < MIM_TR_FRAME_SIZE_MAX) {
+            HAL_UART_Receive_IT(mim_tr_ptr->huart, &mim_tr_ptr->rx_buffer[++mim_tr_ptr->rx_ptr], 1);
+        }
+        else{
+            mim_tr_it_rx_error_cb(mim_tr_ptr);
+            return;
+        }
+        //
+        if(mim_tr_ptr->tim->Instance->CNT != 0){
+            mim_tr_ptr->tim->Instance->CNT = 0;
+        }
+        else{
+            HAL_TIM_Base_Start_IT(mim_tr_ptr->tim);
+        }
     }
-    else{
-        mim_tr_it_rx_error_cb(mim_tr_ptr);
-        return;
-    }
-    //
-    if(mim_tr_ptr->tim->Instance->CNT != 0){
-        mim_tr_ptr->tim->Instance->CNT = 0;
-    }
-    else{
-        HAL_TIM_Base_Start_IT(mim_tr_ptr->tim);
-    }
+    return;
 }
 
 /**
- * @brief 
+ * @brief проверка принятого пакета на корректность
  * 
- * @param mim_tr_ptr 
- * @return uint8_t 0 - rx_frame is OK
+ * @param mim_tr_ptr указатель на структуру интерфейса передачи данных
+ * @return uint8_t 0 - rx_frame is OK, 1 - ошибка стартового символа, 2 - ошибка длины данных, 3 - ошибка crc8
  */
 uint8_t mim_tr_it_check_rx_packet(type_MIM_TR_LVL_Interface* mim_tr_ptr)
 {   
@@ -347,17 +368,17 @@ uint8_t mim_tr_it_check_rx_packet(type_MIM_TR_LVL_Interface* mim_tr_ptr)
                 mim_tr_ptr->tx_addr = mim_tr_ptr->rx_frame.fields.tx_addr;
             }
             else{
-                return 3;
+                return 3;  // ошибка crc8
             }
         }
         else{
-            return 2;
+            return 2;  // ошибка длины данных
         }
     }
     else{
-        return 1;
+        return 1;  // ошибка стартового символа
     }
-    return 0;
+    return 0;  // пакет корректен
 }
 
 /**
@@ -367,11 +388,13 @@ uint8_t mim_tr_it_check_rx_packet(type_MIM_TR_LVL_Interface* mim_tr_ptr)
  */
 void mim_tr_it_rx_error_cb(type_MIM_TR_LVL_Interface* mim_tr_ptr)
 {
-    mim_tr_ptr->rx_ptr = 0;
-		mim_tr_set_de(mim_tr_ptr, 0);
-    HAL_TIM_Base_Stop_IT(mim_tr_ptr->tim);
-    HAL_UART_Abort(mim_tr_ptr->huart);
-    HAL_UART_Receive_IT(mim_tr_ptr->huart, &mim_tr_ptr->rx_buffer[mim_tr_ptr->rx_ptr++], 1);
+    if(mim_tr_ptr->channel_ena){
+        mim_tr_ptr->rx_ptr = 0;
+        mim_tr_set_de(mim_tr_ptr, 0);
+        HAL_TIM_Base_Stop_IT(mim_tr_ptr->tim);
+        HAL_UART_Abort(mim_tr_ptr->huart);
+        HAL_UART_Receive_IT(mim_tr_ptr->huart, &mim_tr_ptr->rx_buffer[mim_tr_ptr->rx_ptr++], 1);
+    }
 }
 
 /**
@@ -406,4 +429,39 @@ int16_t mim_tr_get_processed_data_id(type_MIM_TR_LVL_Interface* mim_tr_ptr)
         }
     }
     return -1;
+}
+
+/**
+ * @brief отключение работы данной линии интерфейса передачи данных
+ * 
+ * @param mim_tr_ptr 
+ */
+void mim_tr_inh_communication(type_MIM_TR_LVL_Interface* mim_tr_ptr)
+{
+    if(mim_tr_ptr->channel_ena){
+        mim_tr_ptr->channel_ena = 0;
+        //
+        mim_tr_ptr->rx_ptr = 0;
+        mim_tr_set_de(mim_tr_ptr, 0);
+        HAL_TIM_Base_Stop_IT(mim_tr_ptr->tim);
+        HAL_UART_Abort(mim_tr_ptr->huart);
+        HAL_NVIC_DisableIRQ(mim_tr_ptr->huart_irq);
+    }
+}
+
+/**
+ * @brief включение работы данной линии интерфейса передачи данных
+ * 
+ * @param mim_tr_ptr 
+ */
+void mim_tr_ena_communication(type_MIM_TR_LVL_Interface* mim_tr_ptr)
+{
+    if(mim_tr_ptr->channel_ena == 0){
+        mim_tr_ptr->channel_ena = 1;
+        //
+        mim_tr_ptr->rx_ptr = 0;
+        mim_tr_set_de(mim_tr_ptr, 0);
+        HAL_UART_Receive_IT(mim_tr_ptr->huart, &mim_tr_ptr->rx_buffer[mim_tr_ptr->rx_ptr++], 1);
+        HAL_NVIC_EnableIRQ(mim_tr_ptr->huart_irq);
+    }
 }

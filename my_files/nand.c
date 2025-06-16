@@ -13,10 +13,12 @@
 
 void nand_init(type_NAND *nand_ptr)
 {
+  
+  //
   nand_reset_parameters(nand_ptr);
   nand_ptr->hnand = &hnand1;
   //
-  
+  // NAND_IDTypeDef pNAND_ID;
   //
   nand_ptr->frame_size_b = NAND_FRAME_SIZE;
   nand_ptr->page_size_b = nand_ptr->hnand->Config.PageSize;
@@ -30,11 +32,13 @@ void nand_init(type_NAND *nand_ptr)
   nand_ptr->page_num_full = nand_ptr->hnand->Config.BlockNbr * nand_ptr->hnand->Config.BlockSize;
   nand_ptr->frame_num_full = nand_ptr->block_size_fr * nand_ptr->block_size_fr;
   //
+	HAL_Delay(1);
+	//
   nand_hal_reset_nand(nand_ptr);
-
+  // HAL_NAND_Reset(nand_ptr->hnand);
   //
   nand_hal_read_id(nand_ptr);
-  // // nand test preparation
+  // // nand test preparation 
   // //
   // nand_hal_erase(nand_ptr, 0);
   // // Test write

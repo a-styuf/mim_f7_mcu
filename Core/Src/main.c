@@ -138,7 +138,6 @@ int main(void)
   /* USER CODE END Init */
 
   /* Configure the system clock */
-
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
@@ -167,6 +166,8 @@ int main(void)
   MX_RTC_Init();
   MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
+  __HAL_DBGMCU_FREEZE_IWDG();
+  //
 	HAL_Delay(1);
   sprintf(version, "%c.%c.%c", raw_ver[0], raw_ver[1], raw_ver[2]);
 	dev_id = *dev_id_ptr - '0';
@@ -198,10 +199,10 @@ int main(void)
   mim_init(&mim, MIM, version, &pwr, IOT_FABR_NUM, dev_id, radio, &ex);
 	printf("%s: Flight task init: <%d> (%d - OK), loaded <%d>\n", now(), ft_cnt, (int)FT_NUM, uint8_val);
   mim_tr_inf_init(&mim_data);
-  mim_tr_init(&mim.tr_lvl[0], &huart7, GPIOA, 11, GPIOA, 11, &htim4, &mim_data, 1);  // DE - инвертировано
-  mim_tr_init(&mim.tr_lvl[1], &huart8, GPIOB, 9, GPIOB, 9, &htim3, &mim_data, 0);  // DE - не инвертировано
-  mim_tr_init(&mim.tr_lvl[2], &huart4, GPIOA, 12, GPIOA, 12, &htim5, &mim_data, 1);  // DE - инвертировано
-  mim_tr_init(&mim.tr_lvl[3], &huart5, GPIOD, 3, GPIOD, 3, &htim2, &mim_data, 0);    // DE - не инвертировано //TODO: Добавить обработку остальных каналов UART
+  mim_tr_init(&mim.tr_lvl[0], &huart7, UART7_IRQn, GPIOA, 11, GPIOA, 11, &htim4, &mim_data, 1);  // DE - инвертировано
+  mim_tr_init(&mim.tr_lvl[1], &huart8, UART8_IRQn, GPIOB, 9, GPIOB, 9, &htim3, &mim_data, 0);  // DE - не инвертировано
+  mim_tr_init(&mim.tr_lvl[2], &huart4, UART4_IRQn, GPIOA, 12, GPIOA, 12, &htim5, &mim_data, 1);  // DE - инвертировано
+  mim_tr_init(&mim.tr_lvl[3], &huart5, UART5_IRQn, GPIOD, 3, GPIOD, 3, &htim2, &mim_data, 0);    // DE - не инвертировано //TODO: Добавить обработку остальных каналов UART
   //
   LocRegistrationRec[0].VarPtr = &CANMasterRx;
   LocRegistrationRec[0].VarLeng = sizeof(CANMasterRx);
@@ -509,15 +510,19 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
   if(huart == &huart7){ //RS_485 channel МА1
 		mim_tr_it_tx_cb(&mim.tr_lvl[0]);
+    // mim_tr_ena_communication(&mim.tr_lvl[2]);
 	}
   if(huart == &huart4){ //RS_485 channel МА2
 		mim_tr_it_tx_cb(&mim.tr_lvl[2]);
+    // mim_tr_ena_communication(&mim.tr_lvl[0]);
 	}
   if(huart == &huart8){ //RS_485 channel МФР1
 		mim_tr_it_tx_cb(&mim.tr_lvl[1]);
+    // mim_tr_ena_communication(&mim.tr_lvl[3]);
 	}
   if(huart == &huart5){ //RS_485 channel МФР2
 		mim_tr_it_tx_cb(&mim.tr_lvl[3]);
+    // mim_tr_ena_communication(&mim.tr_lvl[1]);
 	}
 }
 
@@ -528,35 +533,43 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	}
   if(huart == &huart7){ //RS_485 channel МА1
 		mim_tr_it_rx_uart_cb(&mim.tr_lvl[0]);
+    mim_tr_inh_communication(&mim.tr_lvl[2]);
 	}
   if(huart == &huart4){ //RS_485 channel МА2
-		// mim_tr_it_rx_uart_cb(&mim.tr_lvl[2]);
+		mim_tr_it_rx_uart_cb(&mim.tr_lvl[2]);
+    mim_tr_inh_communication(&mim.tr_lvl[0]);
 	}
   if(huart == &huart8){ //RS_485 channel МФР1
 		mim_tr_it_rx_uart_cb(&mim.tr_lvl[1]);
+    mim_tr_inh_communication(&mim.tr_lvl[3]);
 	}
   if(huart == &huart5){ //RS_485 channel МФР2
-		// mim_tr_it_rx_uart_cb(&mim.tr_lvl[3]);
+		mim_tr_it_rx_uart_cb(&mim.tr_lvl[3]);
+    mim_tr_inh_communication(&mim.tr_lvl[1]);
 	}
 }
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
   if(huart == &huart7){ //RS_485 channel МА1
-		printf("%s: uart error %d\n", now(), (int)HAL_UART_GetError(huart));
+		printf("%s: uart 7 error %d\n", now(), (int)HAL_UART_GetError(huart));
     mim_tr_it_rx_error_cb(&mim.tr_lvl[0]);
+    // mim_tr_ena_communication(&mim.tr_lvl[0]);
 	}
   if(huart == &huart4){ //RS_485 channel МА2
-		printf("%s: uart error %d\n", now(), (int)HAL_UART_GetError(huart));
+		printf("%s: uart 4 error %d\n", now(), (int)HAL_UART_GetError(huart));
     mim_tr_it_rx_error_cb(&mim.tr_lvl[2]);
+    // mim_tr_ena_communication(&mim.tr_lvl[2]);
 	}
   if(huart == &huart8){ //RS_485 channel МФР1
-		printf("%s: uart error %d\n", now(), (int)HAL_UART_GetError(huart));
+		printf("%s: uart 8 error %d\n", now(), (int)HAL_UART_GetError(huart));
     mim_tr_it_rx_error_cb(&mim.tr_lvl[1]);
+    // mim_tr_ena_communication(&mim.tr_lvl[1]);
 	}
   if(huart == &huart5){ //RS_485 channel МФР2
-		printf("%s: uart error %d\n", now(), (int)HAL_UART_GetError(huart));
+		printf("%s: uart 5 error %d\n", now(), (int)HAL_UART_GetError(huart));
     mim_tr_it_rx_error_cb(&mim.tr_lvl[3]);
+    // mim_tr_ena_communication(&mim.tr_lvl[3]);
 	}
 }
 
@@ -580,6 +593,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   if (htim == &htim7) { // task_planner
 		tp_timer_handler(&tp);
 	}
+}
+
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  printf("GPIO pin %d\n", (int)GPIO_Pin);
 }
 
 /* USER CODE END 4 */

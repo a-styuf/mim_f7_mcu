@@ -9,6 +9,16 @@
 #include "mim_rs485_tr_lvl_data_map.h"
 #include "segmented_data.h"
 
+/* @defgroup UART_Error_Definition   UART Error Definition
+// #define  HAL_UART_ERROR_NONE             (0x00000000U)    !< No error                */
+// #define  HAL_UART_ERROR_PE               (0x00000001U)    !< Parity error            */
+// #define  HAL_UART_ERROR_NE               (0x00000002U)    !< Noise error             */
+// #define  HAL_UART_ERROR_FE               (0x00000004U)    !< Frame error             */
+// #define  HAL_UART_ERROR_ORE              (0x00000008U)    !< Overrun error           */
+// #define  HAL_UART_ERROR_DMA              (0x00000010U)    !< DMA transfer error      */
+// #define  HAL_UART_ERROR_RTO              (0x00000020U)    !< Receiver Timeout error  */
+
+
 #ifndef MAX
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
 #endif
@@ -93,6 +103,8 @@ typedef struct
     uint8_t tx_addr;
     uint8_t used_rx_ch_de;
     uint8_t de_invert;
+    uint8_t channel_ena; // отслеживание работоспособности канала связи
+    IRQn_Type huart_irq;
     //
     uint8_t rx_buffer[MIM_TR_FRAME_SIZE_MAX];
     uint16_t rx_ptr;
@@ -112,7 +124,7 @@ typedef struct
 
 #pragma pack(pop)
 
-void mim_tr_init(type_MIM_TR_LVL_Interface* mim_tr_ptr, UART_HandleTypeDef* huart, GPIO_TypeDef* ch0_ena_bank, uint16_t ch0_ena_line, GPIO_TypeDef* ch1_ena_bank, uint16_t ch1_ena_line, TIM_HandleTypeDef* tim, type_MIM_INF_ID_DATA* data_map, uint8_t de_invert);
+void mim_tr_init(type_MIM_TR_LVL_Interface* mim_tr_ptr, UART_HandleTypeDef* huart, IRQn_Type huart_irq, GPIO_TypeDef* ch0_ena_bank, uint16_t ch0_ena_line, GPIO_TypeDef* ch1_ena_bank, uint16_t ch1_ena_line, TIM_HandleTypeDef* tim, type_MIM_INF_ID_DATA* data_map, uint8_t de_invert);
 uint16_t mim_tr_form_tx_data(type_MIM_TR_LVL_Interface* mim_tr_ptr);
 void mim_tr_tx_frame_fill(type_MIM_TR_LVL_Interface* mim_tr_ptr, uint8_t flag, uint8_t id, uint8_t* data, uint16_t data_len);
 void mim_tr_set_de(type_MIM_TR_LVL_Interface* mim_tr_ptr, uint8_t val);
@@ -128,6 +140,9 @@ uint8_t mim_tr_it_check_rx_packet(type_MIM_TR_LVL_Interface* mim_tr_ptr);
 void mim_tr_it_rx_error_cb(type_MIM_TR_LVL_Interface* mim_tr_ptr);
 int16_t mim_tr_get_processed_cmd_id(type_MIM_TR_LVL_Interface* mim_tr_ptr);
 int16_t mim_tr_get_processed_data_id(type_MIM_TR_LVL_Interface* mim_tr_ptr);
+
+void mim_tr_inh_communication(type_MIM_TR_LVL_Interface* mim_tr_ptr);
+void mim_tr_ena_communication(type_MIM_TR_LVL_Interface* mim_tr_ptr);
 
 
 #endif

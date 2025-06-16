@@ -48,7 +48,7 @@ void MX_FMC_Init(void)
   hnand1.Init.NandBank = FMC_NAND_BANK3;
   hnand1.Init.Waitfeature = FMC_NAND_WAIT_FEATURE_ENABLE;
   hnand1.Init.MemoryDataWidth = FMC_NAND_MEM_BUS_WIDTH_8;
-  hnand1.Init.EccComputation = FMC_NAND_ECC_ENABLE;
+  hnand1.Init.EccComputation = FMC_NAND_ECC_DISABLE;
   hnand1.Init.ECCPageSize = FMC_NAND_ECC_PAGE_SIZE_1024BYTE;
   hnand1.Init.TCLRSetupTime = 1;
   hnand1.Init.TARSetupTime = 1;
@@ -64,7 +64,7 @@ void MX_FMC_Init(void)
   ComSpaceTiming.SetupTime = 2;
   ComSpaceTiming.WaitSetupTime = 2;
   ComSpaceTiming.HoldSetupTime = 4;
-  ComSpaceTiming.HiZSetupTime = 3;
+  ComSpaceTiming.HiZSetupTime = 4;
   /* AttSpaceTiming */
   AttSpaceTiming.SetupTime = 2;
   AttSpaceTiming.WaitSetupTime = 2;
