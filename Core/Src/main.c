@@ -201,8 +201,8 @@ int main(void)
   mim_tr_inf_init(&mim_data);
   mim_tr_init(&mim.tr_lvl[0], &huart7, UART7_IRQn, GPIOA, 11, GPIOA, 11, &htim4, &mim_data, 1);  // DE - инвертировано
   mim_tr_init(&mim.tr_lvl[1], &huart8, UART8_IRQn, GPIOB, 9, GPIOB, 9, &htim3, &mim_data, 0);  // DE - не инвертировано
-  mim_tr_init(&mim.tr_lvl[2], &huart4, UART4_IRQn, GPIOA, 12, GPIOA, 12, &htim5, &mim_data, 1);  // DE - инвертировано
-  mim_tr_init(&mim.tr_lvl[3], &huart5, UART5_IRQn, GPIOD, 3, GPIOD, 3, &htim2, &mim_data, 0);    // DE - не инвертировано //TODO: Добавить обработку остальных каналов UART
+  // mim_tr_init(&mim.tr_lvl[2], &huart4, UART4_IRQn, GPIOA, 12, GPIOA, 12, &htim5, &mim_data, 1);  // DE - инвертировано
+  // mim_tr_init(&mim.tr_lvl[3], &huart5, UART5_IRQn, GPIOD, 3, GPIOD, 3, &htim2, &mim_data, 0);    // DE - не инвертировано //TODO: Добавить обработку остальных каналов UART
   //
   LocRegistrationRec[0].VarPtr = &CANMasterRx;
   LocRegistrationRec[0].VarLeng = sizeof(CANMasterRx);
@@ -506,14 +506,14 @@ void HAL_SYSTICK_Callback(void)
 	systick_counter++;
 }
 
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)  //TODO: необходимо сделать восстановление работы второй линии по прерыванию UART IDLE, так как на этом прерывании возникает коллизия при передаче
 {
   if(huart == &huart7){ //RS_485 channel МА1
 		mim_tr_it_tx_cb(&mim.tr_lvl[0]);
     // mim_tr_ena_communication(&mim.tr_lvl[2]);
 	}
   if(huart == &huart4){ //RS_485 channel МА2
-		mim_tr_it_tx_cb(&mim.tr_lvl[2]);
+		// mim_tr_it_tx_cb(&mim.tr_lvl[2]);
     // mim_tr_ena_communication(&mim.tr_lvl[0]);
 	}
   if(huart == &huart8){ //RS_485 channel МФР1
@@ -521,8 +521,8 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
     // mim_tr_ena_communication(&mim.tr_lvl[3]);
 	}
   if(huart == &huart5){ //RS_485 channel МФР2
-		mim_tr_it_tx_cb(&mim.tr_lvl[3]);
-    // mim_tr_ena_communication(&mim.tr_lvl[1]);
+		// mim_tr_it_tx_cb(&mim.tr_lvl[3]);
+    // // mim_tr_ena_communication(&mim.tr_lvl[1]);
 	}
 }
 
@@ -536,16 +536,16 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     mim_tr_inh_communication(&mim.tr_lvl[2]);
 	}
   if(huart == &huart4){ //RS_485 channel МА2
-		mim_tr_it_rx_uart_cb(&mim.tr_lvl[2]);
-    mim_tr_inh_communication(&mim.tr_lvl[0]);
+		// mim_tr_it_rx_uart_cb(&mim.tr_lvl[2]);
+    // mim_tr_inh_communication(&mim.tr_lvl[0]);
 	}
   if(huart == &huart8){ //RS_485 channel МФР1
 		mim_tr_it_rx_uart_cb(&mim.tr_lvl[1]);
     mim_tr_inh_communication(&mim.tr_lvl[3]);
 	}
   if(huart == &huart5){ //RS_485 channel МФР2
-		mim_tr_it_rx_uart_cb(&mim.tr_lvl[3]);
-    mim_tr_inh_communication(&mim.tr_lvl[1]);
+		// mim_tr_it_rx_uart_cb(&mim.tr_lvl[3]);
+    // mim_tr_inh_communication(&mim.tr_lvl[1]);
 	}
 }
 
@@ -557,9 +557,9 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
     // mim_tr_ena_communication(&mim.tr_lvl[0]);
 	}
   if(huart == &huart4){ //RS_485 channel МА2
-		printf("%s: uart 4 error %d\n", now(), (int)HAL_UART_GetError(huart));
-    mim_tr_it_rx_error_cb(&mim.tr_lvl[2]);
-    // mim_tr_ena_communication(&mim.tr_lvl[2]);
+		// printf("%s: uart 4 error %d\n", now(), (int)HAL_UART_GetError(huart));
+    // mim_tr_it_rx_error_cb(&mim.tr_lvl[2]);
+    // // mim_tr_ena_communication(&mim.tr_lvl[2]);
 	}
   if(huart == &huart8){ //RS_485 channel МФР1
 		printf("%s: uart 8 error %d\n", now(), (int)HAL_UART_GetError(huart));
@@ -567,9 +567,9 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
     // mim_tr_ena_communication(&mim.tr_lvl[1]);
 	}
   if(huart == &huart5){ //RS_485 channel МФР2
-		printf("%s: uart 5 error %d\n", now(), (int)HAL_UART_GetError(huart));
-    mim_tr_it_rx_error_cb(&mim.tr_lvl[3]);
-    // mim_tr_ena_communication(&mim.tr_lvl[3]);
+		// printf("%s: uart 5 error %d\n", now(), (int)HAL_UART_GetError(huart));
+    // mim_tr_it_rx_error_cb(&mim.tr_lvl[3]);
+    // // mim_tr_ena_communication(&mim.tr_lvl[3]);
 	}
 }
 
@@ -579,13 +579,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		mim_tr_it_rx_timer_cb(&mim.tr_lvl[0]);
 	}
 	if (htim == &htim5) { //RS_485 channel МА2
-		mim_tr_it_rx_timer_cb(&mim.tr_lvl[2]);
+		// mim_tr_it_rx_timer_cb(&mim.tr_lvl[2]);
 	}
   if (htim == &htim3) { //RS_485 channel МФР1
 		mim_tr_it_rx_timer_cb(&mim.tr_lvl[1]);
 	}
   if (htim == &htim2) { //RS_485 channel МФР2
-		mim_tr_it_rx_timer_cb(&mim.tr_lvl[3]);
+		// mim_tr_it_rx_timer_cb(&mim.tr_lvl[3]);
 	}
   if (htim == &htim9) { // system_uart
 		suart_timer_irq_handler(&suart);

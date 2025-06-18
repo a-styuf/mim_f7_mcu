@@ -3,9 +3,9 @@
 <title>Static Call Graph - [mim_f7_mcu\mim_f7_mcu.axf]</title></head>
 <body><HR>
 <H1>Static Call Graph for image mim_f7_mcu\mim_f7_mcu.axf</H1><HR>
-<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060960: Last Updated: Mon Jun 16 11:14:45 2025
+<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060960: Last Updated: Wed Jun 18 13:42:28 2025
 <BR><P>
-<H3>Maximum Stack Usage =        848 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
+<H3>Maximum Stack Usage =        832 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
 Call chain for Maximum Stack Depth:</H3>
 __rt_entry_main &rArr; main &rArr; pwr_init &rArr; now &rArr; clock_get_str &rArr; __2sprintf &rArr; _printf_char_common &rArr; __printf
 <P>
@@ -336,7 +336,7 @@ Global Symbols
 <P><STRONG><a name="[257]"></a>__rt_entry_postsh_1</STRONG> (Thumb, 0 bytes, Stack size unknown bytes, __rtentry2.o(.ARM.Collect$$rtentry$$00000009))
 
 <P><STRONG><a name="[af]"></a>__rt_entry_main</STRONG> (Thumb, 0 bytes, Stack size unknown bytes, __rtentry2.o(.ARM.Collect$$rtentry$$0000000D))
-<BR><BR>[Stack]<UL><LI>Max Depth = 848 + Unknown Stack Size
+<BR><BR>[Stack]<UL><LI>Max Depth = 832 + Unknown Stack Size
 <LI>Call Chain = __rt_entry_main &rArr; main &rArr; pwr_init &rArr; now &rArr; clock_get_str &rArr; __2sprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
 <BR>[Calls]<UL><LI><a href="#[b0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
@@ -1988,7 +1988,7 @@ Global Symbols
 <BR><BR>[Called By]<UL><LI><a href="#[13e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_TIM_IRQHandler
 </UL>
 
-<P><STRONG><a name="[142]"></a>HAL_TIM_PeriodElapsedCallback</STRONG> (Thumb, 78 bytes, Stack size 8 bytes, main.o(i.HAL_TIM_PeriodElapsedCallback))
+<P><STRONG><a name="[142]"></a>HAL_TIM_PeriodElapsedCallback</STRONG> (Thumb, 54 bytes, Stack size 8 bytes, main.o(i.HAL_TIM_PeriodElapsedCallback))
 <BR><BR>[Stack]<UL><LI>Max Depth = 140 + Unknown Stack Size
 <LI>Call Chain = HAL_TIM_PeriodElapsedCallback &rArr; mim_tr_it_rx_timer_cb &rArr; segm_put_new_frame &rArr; segm_check_frame &rArr; crc8ccitt
 </UL>
@@ -2053,7 +2053,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[149]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;mim_tr_it_rx_timer_cb
 </UL>
 
-<P><STRONG><a name="[152]"></a>HAL_UART_ErrorCallback</STRONG> (Thumb, 150 bytes, Stack size 16 bytes, main.o(i.HAL_UART_ErrorCallback))
+<P><STRONG><a name="[152]"></a>HAL_UART_ErrorCallback</STRONG> (Thumb, 78 bytes, Stack size 16 bytes, main.o(i.HAL_UART_ErrorCallback))
 <BR><BR>[Stack]<UL><LI>Max Depth = 224 + Unknown Stack Size
 <LI>Call Chain = HAL_UART_ErrorCallback &rArr; now &rArr; clock_get_str &rArr; __2sprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
@@ -2134,7 +2134,7 @@ Global Symbols
 <LI><a href="#[22e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;suart_send_cmd
 </UL>
 
-<P><STRONG><a name="[162]"></a>HAL_UART_RxCpltCallback</STRONG> (Thumb, 90 bytes, Stack size 8 bytes, main.o(i.HAL_UART_RxCpltCallback))
+<P><STRONG><a name="[162]"></a>HAL_UART_RxCpltCallback</STRONG> (Thumb, 54 bytes, Stack size 8 bytes, main.o(i.HAL_UART_RxCpltCallback))
 <BR><BR>[Stack]<UL><LI>Max Depth = 64<LI>Call Chain = HAL_UART_RxCpltCallback &rArr; mim_tr_it_rx_uart_cb &rArr; mim_tr_it_rx_error_cb &rArr; mim_tr_set_de &rArr; gpio_set
 </UL>
 <BR>[Calls]<UL><LI><a href="#[163]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;suart_rx_irq_handler
@@ -2168,7 +2168,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[22e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;suart_send_cmd
 </UL>
 
-<P><STRONG><a name="[169]"></a>HAL_UART_TxCpltCallback</STRONG> (Thumb, 54 bytes, Stack size 8 bytes, main.o(i.HAL_UART_TxCpltCallback))
+<P><STRONG><a name="[169]"></a>HAL_UART_TxCpltCallback</STRONG> (Thumb, 30 bytes, Stack size 8 bytes, main.o(i.HAL_UART_TxCpltCallback))
 <BR><BR>[Stack]<UL><LI>Max Depth = 48<LI>Call Chain = HAL_UART_TxCpltCallback &rArr; mim_tr_it_tx_cb &rArr; mim_tr_set_de &rArr; gpio_set
 </UL>
 <BR>[Calls]<UL><LI><a href="#[16a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;mim_tr_it_tx_cb
@@ -2239,8 +2239,8 @@ Global Symbols
 <P><STRONG><a name="[171]"></a>MX_RTC_Init</STRONG> (Thumb, 42 bytes, Stack size 8 bytes, rtc.o(i.MX_RTC_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 208<LI>Call Chain = MX_RTC_Init &rArr; HAL_RTC_Init &rArr; HAL_RTC_MspInit &rArr; HAL_RCCEx_PeriphCLKConfig
 </UL>
-<BR>[Calls]<UL><LI><a href="#[128]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Error_Handler
-<LI><a href="#[124]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_RTC_Init
+<BR>[Calls]<UL><LI><a href="#[124]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_RTC_Init
+<LI><a href="#[128]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Error_Handler
 </UL>
 <BR>[Called By]<UL><LI><a href="#[b0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
@@ -3187,8 +3187,8 @@ Global Symbols
 <LI><a href="#[193]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;cy15_init
 </UL>
 
-<P><STRONG><a name="[b0]"></a>main</STRONG> (Thumb, 4142 bytes, Stack size 264 bytes, main.o(i.main))
-<BR><BR>[Stack]<UL><LI>Max Depth = 848 + Unknown Stack Size
+<P><STRONG><a name="[b0]"></a>main</STRONG> (Thumb, 3494 bytes, Stack size 248 bytes, main.o(i.main))
+<BR><BR>[Stack]<UL><LI>Max Depth = 832 + Unknown Stack Size
 <LI>Call Chain = main &rArr; pwr_init &rArr; now &rArr; clock_get_str &rArr; __2sprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
 <BR>[Calls]<UL><LI><a href="#[1cf]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;tp_process_registration
