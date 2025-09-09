@@ -25,6 +25,7 @@ void mim_tr_inf_init(type_MIM_INF_ID_DATA* data_ptr)
     cmd_num = mim_tr_inf_set_unit(++cmd_num, data_ptr, MIM_INF_ID_SET_EXP_SETTINGS,  	MIM_INF_LVL_MODE_WR, 32, 0);
     cmd_num = mim_tr_inf_set_unit(++cmd_num, data_ptr, MIM_INF_ID_READ_EXP_SETTINGS, 	MIM_INF_LVL_MODE_RD, 32, 0);
     cmd_num = mim_tr_inf_set_unit(++cmd_num, data_ptr, MIM_INF_ID_READ_EXP_TMI,      	MIM_INF_LVL_MODE_RD, 128, 0);
+    cmd_num = mim_tr_inf_set_unit(++cmd_num, data_ptr, MIM_INF_ID_READ_RM_CMD_STATUS,	MIM_INF_LVL_MODE_RD, 128, 0);
 		//
     cmd_num = mim_tr_inf_set_unit(++cmd_num, data_ptr, MIM_INF_ID_TX_CFG_REQ,        MIM_INF_LVL_MODE_WR, 6,   0);
     cmd_num = mim_tr_inf_set_unit(++cmd_num, data_ptr, MIM_INF_ID_TX_CFG_RD,       		MIM_INF_LVL_MODE_RD, 31 , 0);

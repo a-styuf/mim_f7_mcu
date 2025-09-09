@@ -84,8 +84,8 @@ ARM Macro Assembler    Page 2
    53 00000200                 include          ..\aa_lib\fw_ver.inc
     1 00000200                 GBLS             _FW_VER_
     2 00000200         
-    3 00000200 1206    _FW_VER_
-                               SETS             "1206"      ;1xxx - MC,  2xxx -
+    3 00000200 1207    _FW_VER_
+                               SETS             "1207"      ;1xxx - MC,  2xxx -
                                                              400,  3xxx - ISM, 
                                                              4xxx - S
     4 00000200         
@@ -115,7 +115,7 @@ ARM Macro Assembler    Page 2
    68 0000001C 00000000        DCD              0           ; Reserved
    69 00000020 00000000        DCD              0           ; Reserved
    70 00000024 31 32 30 
-              36       __FW_Version
+              37       __FW_Version
                                DCB              _FW_VER_    ; FW Version
    71 00000028 00000000        DCD              0           ; Reserved
    72 0000002C 00000000        DCD              SVC_Handler ; SVCall Handler

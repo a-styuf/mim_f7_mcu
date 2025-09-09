@@ -69,7 +69,14 @@ int8_t radio_process_tp(void* ctrl_struct, uint64_t time_us, typeProcessInterfac
 	// обработка интервалов работы БЭ
 	if (radio_interval_processor(radio_ptr, RADIO_POLLING_INTERVAL, time_us)) {
 		// USER_CODE_BEGIN
-		
+		if ((interface->event[radio_ptr->self_id] & RADIO_TP_EVENT_UPDATE_CMD_STATUS_REPORT) == 0)
+		{
+			radio_tx_get_cmd_status(radio_ptr);
+			radio_rx_get_cmd_status(radio_ptr);
+			radio_generate_cmd_status_report(radio_ptr);
+			shared_mem->field.rm_cs_report = radio_ptr->cmd_status_report.word;
+			interface->event[radio_ptr->self_id] |= RADIO_TP_EVENT_UPDATE_CMD_STATUS_REPORT;
+		}
 		// USER_CODE_END
 		retval = 1;
 	}
@@ -354,10 +361,12 @@ void radio_tx_send_cmd(type_RADIO* radio_ptr, uint8_t cmd)
 	}
 	//
 	if (error >= 0) {
+		if ((cmd == CMD_TX_TRANSMIT) || (cmd == CMD_TX_SETPARAMS_TRANSMIT) || (cmd == CMD_TX_SETPARAMS)) {
+			radio_tx_get_cmd_status(radio_ptr); // запрос параметров ддя асинхронного обновления cmd и status для радиомодуля
+		}
 		if ((cmd == CMD_TX_TRANSMIT) || (cmd == CMD_TX_SETPARAMS_TRANSMIT)){
 			radio_ptr->tx_ctrl.frame_cnter += 1;
 		}
-		radio_tx_get_cmd_status(radio_ptr);
 	}
 	else{
 		if (radio_ptr->pwr_ch_ptr->mode != PWR_CH_OFF) radio_status_collector(radio_ptr, RADIO_STATUS_CAN_ERR, RADIO_STATUS_SET);
@@ -603,7 +612,7 @@ int8_t radio_rx_send_cmd(type_RADIO* radio_ptr, uint8_t cmd)
 	error = CANVar_Write(idx, (uint8_t*)&radio_ptr->rx_ctrl.IVarRxCtrl_wr, 1);
 	//
 	if (error >= 0) {
-		radio_rx_get_cmd_status(radio_ptr);
+		radio_rx_get_cmd_status(radio_ptr); // асинхронное обновление cmd и status отправки
 		return 0;
 	}
 	else{
@@ -701,6 +710,26 @@ int8_t radio_read_rx_fifo(type_RADIO* radio_ptr, typePktRx* rx_frame_ptr)
 		radio_status_collector(radio_ptr, RADIO_STATUS_RX_FIFO_FULL, RADIO_STATUS_RELEASE);
 		return 1;
 	}
+}
+
+/**
+ * @brief Сборка отчета по состояниям команд, выполняемых радиомодулем, и их статусов
+ * 
+ * @param radio_ptr 
+ * @return uint32_t отчет
+ */
+uint32_t radio_generate_cmd_status_report(type_RADIO* radio_ptr)
+{	
+	radio_ptr->cmd_status_report.fd.tx_cmd = radio_ptr->tx_ctrl.IVarTxCtrl_rd.Cmd & 0x0F;
+	radio_ptr->cmd_status_report.fd.tx_status = (-1*radio_ptr->tx_ctrl.IVarTxCtrl_rd.Status) & 0x0F;
+	//
+	radio_ptr->cmd_status_report.fd.rx_cmd = radio_ptr->rx_ctrl.IVarRxCtrl_rd.Cmd & 0x0F;
+	radio_ptr->cmd_status_report.fd.rx_status_0 = (-1*radio_ptr->rx_ctrl.IVarRxCtrl_rd.Status[0]) & 0x0F;
+	radio_ptr->cmd_status_report.fd.rx_status_1 = (-1*radio_ptr->rx_ctrl.IVarRxCtrl_rd.Status[1]) & 0x0F;
+	radio_ptr->cmd_status_report.fd.rx_status_2 = (-1*radio_ptr->rx_ctrl.IVarRxCtrl_rd.Status[2]) & 0x0F;
+	radio_ptr->cmd_status_report.fd.rx_status_3 = (-1*radio_ptr->rx_ctrl.IVarRxCtrl_rd.Status[3]) & 0x0F;
+	//
+	return radio_ptr->cmd_status_report.word;
 }
 
 

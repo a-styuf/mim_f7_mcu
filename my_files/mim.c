@@ -29,10 +29,12 @@ int8_t mim_ctrl_init(type_MIM_DEVICE* mim_ptr)
 	memset((uint8_t*)mim_ptr->pl_status, 0x00, sizeof(mim_ptr->pl_status));
 	memset((uint8_t*)mim_ptr->pl_report, 0x00, sizeof(mim_ptr->pl_report));
 	memset((uint8_t*)&mim_ptr->rx_fifo, 0x00, sizeof(type_MIM_RX_Fifo));
+	memset((uint8_t*)&mim_ptr->rm_st_cmd_report_frame, 0x00, sizeof(type_MIM_RM_Status_TMI));
 	mim_ptr->ctrl.inhibit = 0;
 	mim_intervals_init(mim_ptr);
 	mim_ptr->need_to_update_report = 0;
 	mim_ptr->need_to_update_status = 0;
+	mim_ptr->need_to_update_rm_cmd_status_report = 0;
 	mim_state_reset(mim_ptr);
 	return ret_val;
 }
@@ -107,7 +109,9 @@ int8_t mim_process_tp(void* ctrl_struct, uint64_t time_us, typeProcessInterfaceS
 	//
 	if (mim_interval_processor(mim_ptr, MIM_INTERVAL_0_5, time_us)) {
 		// user code begin
-		
+		for (uint8_t rm = 0; rm<MIM_MODULE_NUM-1; rm++){
+			//
+		}
 		// user code end
 		retval = 1;
 	}
@@ -192,7 +196,7 @@ int8_t mim_process_tp(void* ctrl_struct, uint64_t time_us, typeProcessInterfaceS
 			memcpy((uint8_t*)mim_ptr->pl_report[pl_num], (uint8_t*)&interface->shared_mem[512*pl_num+18], 16);
 		}		
 	}
-	// вычитывание принятых покетов из радиомодулей
+	// вычитывание принятых пакетов из радиомодулей
 	for (uint8_t radio = 1; radio < MIM_MODULE_NUM; radio++){
 		if(interface->event[radio] & MIM_TP_EVENT_UPDATE_LAST_FRAME){
 			interface->event[radio] &= ~MIM_TP_EVENT_UPDATE_LAST_FRAME;
@@ -203,6 +207,21 @@ int8_t mim_process_tp(void* ctrl_struct, uint64_t time_us, typeProcessInterfaceS
 				mim_error_collector(mim_ptr, MIM_ERROR_RX_FIFO, MIM_ERROR_TYPE_SET);
 			}
 		}
+		if(interface->event[radio] & MIM_TP_EVENT_UPDATE_CMD_STATUS_REPORT){
+			interface->event[radio] &= ~MIM_TP_EVENT_UPDATE_CMD_STATUS_REPORT;
+			mim_ptr->rm_st_cmd_report_frame.fields.cmd_status[radio-1].word = *(uint32_t*)&interface->shared_mem[radio*512+430];
+			mim_ptr->need_to_update_rm_cmd_status_report = 1;
+		}
+	}
+	//
+	if (mim_ptr->need_to_update_rm_cmd_status_report)
+	{
+		mim_ptr->need_to_update_rm_cmd_status_report = 0;
+		update_rm_st_cmd_report_frame(mim_ptr);
+		mem_tr_inf_receive_id_data(	mim_ptr->tr_lvl[0].data_map, 
+									MIM_INF_ID_READ_RM_CMD_STATUS, 
+									(uint8_t*)&mim_ptr->rm_st_cmd_report_frame, 
+									sizeof(mim_ptr->rm_st_cmd_report_frame));
 	}
 	//
 	if (mim_ptr->need_to_update_report){
@@ -512,6 +531,21 @@ void fill_sys_tmi(type_MIM_DEVICE* mim_ptr)
 	//
 	memcpy(mim_ptr->sys_tmi.array[0], sys_tmi.array[0], sizeof(typeSingleFrameStruct));
 	memcpy(mim_ptr->sys_tmi.array[1], sys_tmi.array[1], sizeof(typeSingleFrameStruct));
+}
+
+/**
+  * @brief  заполнение ТМИ
+  * @param  mim_ptr: структура управления для МС
+  */
+void update_rm_st_cmd_report_frame(type_MIM_DEVICE* mim_ptr)
+{
+	type_MIM_RM_Status_TMI* frame = &mim_ptr->rm_st_cmd_report_frame;
+	//
+	frame_create_header((uint8_t*)&frame->fields.header, mim_ptr->fabr_num, mim_ptr->dev_id, 0x00, 0x00, MIM_FR_TYPE_RM_CMD_STATUS_REPORT, mim_ptr->frame_num++, NULL);
+	//
+	memset(frame->fields.reserve, 0xFE, sizeof(frame->fields.reserve));
+	//
+	frame_crc16_calc(&frame->array[0]);
 }
 
 /**

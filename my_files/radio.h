@@ -45,10 +45,12 @@
 #define RADIO_STATUS_RELEASE			(0)
 
 // события планировщика задач
-#define RADIO_TP_EVENT_UPDATE_TMI			(1<<0)
-#define RADIO_TP_EVENT_UPDATE_REPORT		(1<<1)
-#define RADIO_TP_EVENT_UPDATE_LAST_FRAME	(1<<2)
-#define RADIO_TP_EVENT_UPDATE_STATUS		(1<<3)
+#define RADIO_TP_EVENT_UPDATE_TMI					(1<<0)
+#define RADIO_TP_EVENT_UPDATE_REPORT				(1<<1)
+#define RADIO_TP_EVENT_UPDATE_LAST_FRAME			(1<<2)
+#define RADIO_TP_EVENT_UPDATE_STATUS				(1<<3)
+#define RADIO_TP_EVENT_TX_EXPERIMENT_DATA			(1<<4)
+#define RADIO_TP_EVENT_UPDATE_CMD_STATUS_REPORT		(1<<5)
 
 // управление интервалами
 enum radio_interval_list
@@ -60,7 +62,7 @@ enum radio_interval_list
 #define DEFAULT_RADIO_MIN_S							{0.1, 		0.1, 	0.1}
 #define DEFAULT_RADIO_MAX_S							{3600.0,	3600.0, 3600.0}
 
-#define DEFAULT_RADIO_INTERV_VALUES_S				{5.0, 1.0, 0.6}
+#define DEFAULT_RADIO_INTERV_VALUES_S				{0.25, 0.1, 0.25}
 #define DEFAULT_RADIO_DEFAULT_START_TIME_S			{3.0, 4.0, 5.0}
 
 #define RADIO_SOM_NUM	(4)
@@ -92,7 +94,8 @@ typedef union {
 		uint8_t pl_report[16];					// +18
 		uint8_t reserve[94];					// +34
 		typePktRx packet;  						// +128
-		uint8_t reserve_1[84];					// +428
+		uint32_t rm_cs_report;					// +430
+		uint8_t reserve_1[78];					// +434
 	}field;
 	uint8_t array[512];
 }type_RADIO_TP_SHARED_MEM; 				// 512
@@ -130,6 +133,23 @@ typedef struct{
 } type_RADIO_RX_Fifo;
 
 /**
+ * @brief  полный набор статусов и команд переформатированных из байт в тетрады для отдельного радиомодуля
+ * 
+ */
+typedef union{
+	uint32_t word;
+	struct{
+		uint32_t tx_cmd : 4;
+		uint32_t tx_status : 4;
+		uint32_t rx_cmd : 4;
+		uint32_t rx_status_0 : 4;
+		uint32_t rx_status_1 : 4;
+		uint32_t rx_status_2 : 4;
+		uint32_t rx_status_3 : 4;
+	}fd;
+} type_RM_CMD_STATUS; // 4
+
+/**
  * @brief структура управления приемником
  * 
  */
@@ -143,7 +163,6 @@ typedef struct{
 	// данные для записи в регистры
 	typeIVarRxSet IVarRxSet_wr[4];
 	typeIVarRxCtrl IVarRxCtrl_wr;
-	// копии регистров из модулей
 	//
 	type_RADIO_RX_Fifo fifo;
 	uint8_t fifo_ena;
@@ -174,6 +193,8 @@ typedef struct {
 	uint8_t first_call_status[RADIO_INTERV_NUMBER];
 	// данные RADIO
 	type_RADIO_Report report;
+	// собранная сжатая версия команд и статусов 
+	type_RM_CMD_STATUS cmd_status_report;
 	// трансмиттер
 	type_RADIO_TX_CTRL tx_ctrl;
 	// ресивер
@@ -225,6 +246,7 @@ int8_t radio_rx_get_cmd_status(type_RADIO* radio_ptr);
 int8_t radio_rx_get_settings(type_RADIO* radio_ptr);
 int8_t radio_write_rx_fifo(type_RADIO* radio_ptr, typePktRx* rx_frame_ptr);
 int8_t radio_read_rx_fifo(type_RADIO* radio_ptr, typePktRx* rx_frame_ptr);
+uint32_t radio_generate_cmd_status_report(type_RADIO* radio_ptr);
 //
 void  radio_status_collector(type_RADIO* radio_ptr, uint16_t flag, uint8_t type);
 void  radio_status_reset(type_RADIO* radio_ptr);

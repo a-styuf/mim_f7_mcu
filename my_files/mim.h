@@ -58,9 +58,10 @@ enum MODE_LIST{
 };
 
 //! Типы кадров
-#define MIM_FR_TYPE_TMI 			0x00
-#define MIM_FR_TYPE_SYS_TMI_PART_1 	0x01
-#define MIM_FR_TYPE_SYS_TMI_PART_2 	0x02
+#define MIM_FR_TYPE_TMI 					0x00
+#define MIM_FR_TYPE_SYS_TMI_PART_1 			0x01
+#define MIM_FR_TYPE_SYS_TMI_PART_2 			0x02
+#define MIM_FR_TYPE_RM_CMD_STATUS_REPORT 	0x03
 
 // раскрашивание переменных
 #define MIM_HANDLER_INTERVAL_MS   			1000
@@ -106,11 +107,12 @@ enum MODE_LIST{
 
 
 // события планировщика задач
-#define MIM_TP_EVENT_UPDATE_TMI				(1 << 0)
-#define MIM_TP_EVENT_UPDATE_REPORT			(1 << 1)
-#define MIM_TP_EVENT_UPDATE_LAST_FRAME		(1 << 2)
-#define MIM_TP_EVENT_UPDATE_STATUS			(1 << 3)
-#define MIM_TP_EVENT_TX_EXPERIMENT_DATA		(1 << 4)
+#define MIM_TP_EVENT_UPDATE_TMI						(1 << 0)
+#define MIM_TP_EVENT_UPDATE_REPORT					(1 << 1)
+#define MIM_TP_EVENT_UPDATE_LAST_FRAME				(1 << 2)
+#define MIM_TP_EVENT_UPDATE_STATUS					(1 << 3)
+#define MIM_TP_EVENT_TX_EXPERIMENT_DATA				(1 << 4)
+#define MIM_TP_EVENT_UPDATE_CMD_STATUS_REPORT		(1 << 5)
 
 enum lm_interval_list
 {
@@ -221,7 +223,27 @@ typedef union{
 	} fl;
 	typeSingleFrameStruct frame[2];
 	uint8_t array[2][128];
-} type_MIM_SYS_TMI;			 				// 256
+} type_MIM_SYS_TMI;		
+
+
+
+/**
+  * @brief  статусы выполнения команд радиомодулями
+  */
+typedef union{
+		struct{
+		type_SingleFrame_Header header; // +0
+		//
+		type_RM_CMD_STATUS cmd_status[MIM_MODULE_NUM - 1]; // +12
+		//
+		uint8_t reserve[62]; 				//+64
+		//
+		uint16_t crc16; 					//+126
+	} fields;
+	typeSingleFrameStruct frame;
+	uint8_t array[128];
+} type_MIM_RM_Status_TMI; 			//128
+
 
 typedef union {
 	struct{
@@ -310,6 +332,7 @@ typedef struct
 	type_MIM_Short_TMI sh_tmi;
 	type_MIM_TMI tmi;
 	type_MIM_SYS_TMI sys_tmi;
+	type_MIM_RM_Status_TMI rm_st_cmd_report_frame;
 	uint16_t frame_num;
 	//
 	uint16_t segm_transaction_cnter;	
@@ -321,6 +344,7 @@ typedef struct
 	//
 	uint8_t need_to_update_report;
 	uint8_t need_to_update_status;
+	uint8_t need_to_update_rm_cmd_status_report;
 	uint16_t pl_status[MIM_MODULE_NUM];
 	uint8_t pl_report[MIM_MODULE_NUM][16];
 	//
@@ -364,6 +388,7 @@ void mim_segm_status_collector(type_MIM_DEVICE* mim_ptr, uint16_t flag, uint8_t 
 void fill_short_tmi(type_MIM_DEVICE* mim_ptr);
 void fill_tmi(type_MIM_DEVICE* mim_ptr);
 void fill_sys_tmi(type_MIM_DEVICE* mim_ptr);
+void update_rm_st_cmd_report_frame(type_MIM_DEVICE* mim_ptr);
 
 
 uint16_t get_val_from_bound(uint16_t val, uint16_t min, uint16_t max);

@@ -122,7 +122,7 @@ typedef struct {
   uint16_t    crc;                  // CRC that was received in the payload         +40
   uint16_t    size;                 // payload size in bytes                        +42
   uint8_t     payload[256];         //                                              +44
-}typePktRx;  // 2+44-300
+}typePktRx;  // 2+44+256 = 302
 
 
 typedef struct {

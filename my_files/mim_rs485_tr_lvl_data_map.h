@@ -32,6 +32,7 @@ typedef enum{
     MIM_INF_ID_SET_EXP_SETTINGS, 
     MIM_INF_ID_READ_EXP_SETTINGS,
     MIM_INF_ID_READ_EXP_TMI,
+    MIM_INF_ID_READ_RM_CMD_STATUS,
     //
     MIM_INF_ID_TX_CFG_REQ = 16,
     MIM_INF_ID_TX_CFG_RD, 
@@ -55,7 +56,7 @@ typedef enum{
     MIM_INF_ID_PULL_NUM //! кол-во забронированного пространства id
 } type_MIM_INF_UNIT_ID;
 
-#define MIM_INF_ID_NUM 22  //! кол-во используемых команд
+#define MIM_INF_ID_NUM 23  //! кол-во используемых команд
 
 #pragma pack(push, 2)
 
