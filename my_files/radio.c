@@ -1,7 +1,7 @@
 /**
  * @file radio.c
- * @author your name (you@domain.com)
- * @brief 
+ * @author Alexey Styuf (a-styuf@yandex.ru)
+ * @brief Драйвер управления радиомодулем Шлюз-IoT
  * @version 0.1
  * @date 2023-10-28
  * 
@@ -11,13 +11,12 @@
 #include "radio.h"
 
 /**
- * @brief 
+ * @brief инициализация радиомодуля
  * 
- * @param radio_ptr 
- * @param pwr_ch 
- * @param mb_addr 
- * @param huart_req 
- * @param self_id 
+ * @param radio_ptr указатель на структуру управления отдельным радиомодулем
+ * @param self_id собственный номер используемого радиомодуля
+ * @param pwr_ch_ptr указатель на структуру управления каналом питания для радиомодуля
+ * @param can_addr адрес модуля на CAN-шине в терминах CAN-Var протокола
  */
 void radio_init(type_RADIO* radio_ptr, uint16_t self_id, type_PWR_CHANNEL* pwr_ch_ptr, uint16_t can_addr)
 {
@@ -119,7 +118,7 @@ int8_t radio_process_tp(void* ctrl_struct, uint64_t time_us, typeProcessInterfac
 /**
  * @brief Создание системного отчета по работе ПН
  * 
- * @param radio_ptr 
+ * @param radio_ptr указатель на структуру управления радиомодулем
  */
 void radio_create_report(type_RADIO* radio_ptr) //TODO: дозаполнить отчет
 {
@@ -139,10 +138,11 @@ void radio_create_report(type_RADIO* radio_ptr) //TODO: дозаполнить �
 }
 
 //*** функции общения с Радио ***//
+
 /**
- * @brief Проверка статуса
+ * @brief Проверка статуса радиомодуля. Статус запрашивается по CAN-шине
  * 
- * @param radio_ptr 
+ * @param radio_ptr указатель на структуру управления радиомодулем
  */
 int8_t radio_check_status(type_RADIO* radio_ptr)
 {	
@@ -160,9 +160,9 @@ int8_t radio_check_status(type_RADIO* radio_ptr)
 }
 
 /**
- * @brief Запрос пакета с данными
+ * @brief Запрос пакета с данными радиомодуля. TODO: дозаполнить или исключить из библиотеки.
  * 
- * @param radio_ptr 
+ * @param radio_ptr указатель на структуру управления радиомодулем
  */
 void radio_get_packet(type_RADIO* radio_ptr)
 {	
@@ -172,7 +172,7 @@ void radio_get_packet(type_RADIO* radio_ptr)
 }
 
 /**
- * @brief Запрос настроек модуля
+ * @brief Запрос настроек модуля. TODO: дозаполнить или исключить из библиотеки.
  * 
  * @param radio_ptr 
  */
@@ -210,7 +210,7 @@ void radio_intervals_init(type_RADIO* radio_ptr)
  * @param radio_ptr указатель на переменную управления
  * @param interval_id уникальный номер обрабатываемого интервала
  * @param time_us текущее время в мкс
- * @return int8_t: 1 - интервал отсчитался, 0 - интервал не досчитался
+ * @return int8_t: 1 - интервал досчитался, 0 - интервал не досчитался
  */
 int8_t radio_interval_processor(type_RADIO* radio_ptr, uint8_t interval_id, uint64_t time_us)
 {
@@ -251,7 +251,7 @@ void radio_set_interval_value(type_RADIO* radio_ptr, uint16_t interval_number, u
 }
 
 /**
- * @brief формирование пакета управления передатчиком
+ * @brief формирование пакета управления передатчиком ISM
  * 
  * @param radio_ptr 
  * @param bw  		ISM : 6..9                   
@@ -279,8 +279,8 @@ void radio_form_tx_cfg(type_RADIO* radio_ptr, uint8_t bw, uint8_t sf, uint8_t cr
  * @brief формирования пакета данных для передачи
  * 
  * @param radio_ptr 
- * @param data 
- * @param len длина данных
+ * @param data данные для передачи
+ * @param len длина данных (max - 255)
  */
 void radio_form_tx_data(type_RADIO* radio_ptr, uint8_t* data, uint8_t len)
 {
@@ -292,7 +292,7 @@ void radio_form_tx_data(type_RADIO* radio_ptr, uint8_t* data, uint8_t len)
  * @brief 
  * 
  * @param radio_ptr 
- * @param mode 
+ * @param mode тип команды дял передачи: 1 - установка параметров, 2 - отправка данных, 3 - установка параметров с отправкой данных
  */
 void radio_tx_data(type_RADIO* radio_ptr, uint8_t mode)
 {
@@ -404,7 +404,7 @@ void radio_tx_test_data(type_RADIO* radio_ptr)
  * @brief чтение настроек передатчика
  * 
  * @param radio_ptr 
- * @return int8_t 
+ * @return int8_t 0 - ОК
  */
 int8_t radio_tx_get_settings(type_RADIO* radio_ptr)
 {
@@ -427,8 +427,7 @@ int8_t radio_tx_get_settings(type_RADIO* radio_ptr)
  * @brief проверка статуса выполнения команды
  * 
  * @param radio_ptr 
- * @param cmd
- * @return int8_t 
+ * @return int8_t 0 - ОК
  */
 int8_t radio_tx_get_cmd_status(type_RADIO* radio_ptr)
 {
@@ -517,7 +516,7 @@ int8_t radio_rx_get_rx_info(type_RADIO* radio_ptr)
 }
 
 /**
- * @brief Проверка данных с принятой информацией для принятия решения по приему данных
+ * @brief Проверка данных с принятой информацией для принятия решения по приему данных.
  * 
  * @param radio_ptr 
  * @return int8_t 0 - нет новых пакетов в радиомодуле, 1 - необходимо запросить пакет данных
@@ -625,8 +624,7 @@ int8_t radio_rx_send_cmd(type_RADIO* radio_ptr, uint8_t cmd)
  * @brief отправка выбранной команды в блок управления приемниками
  * 
  * @param radio_ptr 
- * @param cmd
- * @return int8_t 
+ * @return int8_t 0 - OK
  */
 int8_t radio_rx_get_cmd_status(type_RADIO* radio_ptr)
 {
@@ -650,6 +648,12 @@ int8_t radio_rx_get_cmd_status(type_RADIO* radio_ptr)
 	}
 }
 
+/**
+ * @brief получение настроек от радиомодуля
+ * 
+ * @param radio_ptr 
+ * @return int8_t 0 - ОК
+ */
 int8_t radio_rx_get_settings(type_RADIO* radio_ptr)
 {
 	//складываем настройки в 
@@ -716,7 +720,7 @@ int8_t radio_read_rx_fifo(type_RADIO* radio_ptr, typePktRx* rx_frame_ptr)
  * @brief Сборка отчета по состояниям команд, выполняемых радиомодулем, и их статусов
  * 
  * @param radio_ptr 
- * @return uint32_t отчет
+ * @return uint32_t отчет по типу type_RM_CMD_STATUS
  */
 uint32_t radio_generate_cmd_status_report(type_RADIO* radio_ptr)
 {	
@@ -740,7 +744,7 @@ uint32_t radio_generate_cmd_status_report(type_RADIO* radio_ptr)
  * 
  * @param radio_ptr 
  * @param flag флаг статуса, при использовании типа  NO_ONE с флагом CLEAR очищает статус и счетчик
- * @param type 
+ * @param type тип статуса
  */
 void  radio_status_collector(type_RADIO* radio_ptr, uint16_t flag, uint8_t type)
 {
@@ -764,11 +768,9 @@ void  radio_status_collector(type_RADIO* radio_ptr, uint16_t flag, uint8_t type)
 }
 
 /**
- * @brief обработка статусов полезной нагрузки
+ * @brief сброс статусов
  * 
  * @param radio_ptr 
- * @param flag флаг статуса, при использовании типа  NO_ONE с флагом CLEAR очищает статус и счетчик
- * @param type 
  */
 void  radio_status_reset(type_RADIO* radio_ptr)
 {
@@ -779,10 +781,10 @@ void  radio_status_reset(type_RADIO* radio_ptr)
 /**
  * @brief если число внутри границ - используется оно, если нет, то ближайшая граница
  * 
- * @param val 
- * @param min 
- * @param max 
- * @return uint16_t 
+ * @param val число	
+ * @param min минимальная граница
+ * @param max максимальная граница
+ * @return uint16_t результат
  */
 uint16_t radio_get_val_from_bound(uint16_t val, uint16_t min, uint16_t max)
 {
@@ -792,11 +794,11 @@ uint16_t radio_get_val_from_bound(uint16_t val, uint16_t min, uint16_t max)
 
 }
 /**
- * @brief Генерация id_msk в формате typeIdxMask
+ * @brief Генерация id_msk в формате typeIdxMask (CAN-Var)
  * 
- * @param dev_id 
- * @param var_id 
- * @param offset 
+ * @param dev_id адрес устройства (max - 16)
+ * @param var_id адрес переменной (max - 16)
+ * @param offset смещение данных внутри переменной (байтовое)
  * @param rtr 1 - чтение, 0 - запись 
  */
 uint32_t generate_can_id_mask(uint32_t dev_id, uint32_t var_id, uint32_t offset, uint32_t rtr)
