@@ -6,8 +6,9 @@
 typeRegistrationRec LocRegistrationRec[28];
 
 
+/* Local functions -----------------------------------------------------------*/
 int CAN_FilterAssign(uint8_t filter_num, typeIdxMask id, typeIdxMask mask, uint8_t enable);
-
+static uint32_t RegisterAllVars(uint8_t id_dev);
 
 int CAN_Init(uint32_t BTR_reg) {
   int tmout;

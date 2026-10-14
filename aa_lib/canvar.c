@@ -28,10 +28,18 @@ void CANVar_Init(uint8_t dev_id, const typeRegistrationRec RegistrationRec[], in
   #error "SYSCLK not defined"
 #endif
   /**/
-  CAN_Init(btr);
-  for(n=0; n<RegistrationRecCount; n++) {
-    CAN_RegisterVar(&RegistrationRec[n], n, dev_id);
-    }
+  RegisterAllVars(dev_id);
+}
+
+uint32_t RegisterAllVars(uint8_t id_dev) {
+  volatile uint8_t n;
+  volatile uint32_t err = 0;
+  
+  for(n=0; n < (sizeof(RegistrationRec)/sizeof(typeRegistrationRec)); n++) {
+    err = (err>=0) ? CAN_RegisterVar(n, id_dev) : err;
+  }
+
+  return err;
 }
 
 
